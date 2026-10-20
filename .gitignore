@@ -1,0 +1,14 @@
+.build/
+.DS_Store
+*.xcuserstate
+xcuserdata/
+/.omp/
+/website/node_modules/
+/website/dist/
+/website/.astro/
+/website/.wrangler/
+.env
+.env.*
+*.p8
+*.p12
+*.mobileprovision

@@ -1,0 +1,78 @@
+name: Sniplet
+options:
+  minimumXcodeGenVersion: 2.46.0
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    PRODUCT_BUNDLE_IDENTIFIER: com.elazer.Sniplet
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Developer ID Application"
+    DEVELOPMENT_TEAM: N948W47G4F
+    ENABLE_HARDENED_RUNTIME: YES
+    OTHER_CODE_SIGN_FLAGS: "--options runtime --timestamp=none"
+    ENABLE_DEBUG_DYLIB: NO
+    ENABLE_APP_SANDBOX: YES
+    CODE_SIGN_ENTITLEMENTS: Sniplet/Resources/Sniplet.entitlements
+    GENERATE_INFOPLIST_FILE: NO
+  configs:
+    Release:
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+      ARCHS: "arm64 x86_64"
+      ONLY_ACTIVE_ARCH: NO
+targets:
+  Sniplet:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sniplet
+        excludes:
+          - Resources/Info.plist
+          - Resources/Sniplet.entitlements
+    info:
+      path: Sniplet/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Sniplet
+        CFBundleShortVersionString: "0.5.0"
+        CFBundleVersion: "11"
+        LSUIElement: true
+        LSMinimumSystemVersion: "14.0"
+        NSHighResolutionCapable: true
+    settings:
+      base:
+        PRODUCT_NAME: Sniplet
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  SnipletTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: SnipletTests
+    dependencies:
+      - target: Sniplet
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.elazer.SnipletTests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_ENTITLEMENTS: ""
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Sniplet.app/Contents/MacOS/Sniplet"
+schemes:
+  Sniplet:
+    build:
+      targets:
+        Sniplet: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - SnipletTests
+      environmentVariables:
+        SNIPLET_UNIT_TESTS: "1"
+    archive:
+      config: Release

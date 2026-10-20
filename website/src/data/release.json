@@ -1,0 +1,8 @@
+{
+  "version": "0.5.0",
+  "build": "11",
+  "repository": "https://github.com/rockythink/Sniplet",
+  "release": "https://github.com/rockythink/Sniplet/releases/tag/v0.5.0",
+  "download": "https://github.com/rockythink/Sniplet/releases/download/v0.5.0/Sniplet-0.5.0-universal.dmg",
+  "zip": "https://github.com/rockythink/Sniplet/releases/download/v0.5.0/Sniplet-0.5.0-universal.zip"
+}
