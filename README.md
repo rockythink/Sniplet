@@ -4,7 +4,7 @@
 
 Capture, annotate, beautify, then share — without leaving the selection. Built with Swift, SwiftUI/AppKit and ScreenCaptureKit. No account, cloud service, analytics, or network entitlement in the app.
 
-[官网 / Website](https://sniplet.ss-data.cc/) · [下载 / Downloads](https://github.com/rockythink/Sniplet/releases/latest) · [反馈 / Issues](https://github.com/rockythink/Sniplet/issues)
+[官网 / Website](https://sniplet.elazer.wang/) · [下载 / Downloads](https://github.com/rockythink/Sniplet/releases/latest) · [反馈 / Issues](https://github.com/rockythink/Sniplet/issues)
 
 ## Download & install
 
