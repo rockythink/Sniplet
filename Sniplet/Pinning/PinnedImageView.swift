@@ -1,114 +1,207 @@
 import AppKit
 
+/// The whole pin is the image: dragging moves the window, zooming resizes it, and the
+/// controls only appear while the pointer is over the pin.
 @MainActor
 final class PinnedImageView: NSView {
     private let capture: RenderedCapture
     private let encoder: ImageEncoder
     private let onClose: () -> Void
-    private let scroll = PinnedScrollView()
-    private let imageView: PinnedImageCanvas
-    private let percentage = NSTextField(labelWithString: "100%")
-    private let errorLabel = NSTextField(wrappingLabelWithString: "")
+    private let controls = NSVisualEffectView()
+    private let percentage = NSButton(title: "100%", target: nil, action: nil)
+    private var hoverTracking: NSTrackingArea?
     private var copyTask: Task<Void, Never>?
+    private var feedbackTask: Task<Void, Never>?
+    /// Window size relative to the image's natural point size on the current display.
+    private(set) var zoom: CGFloat = 1
 
     init(capture: RenderedCapture, encoder: ImageEncoder, onClose: @escaping () -> Void) {
         self.capture = capture
         self.encoder = encoder
         self.onClose = onClose
-        imageView = PinnedImageCanvas(image: capture.image)
         super.init(frame: .zero)
-        scroll.contentView = CenteredPinnedClipView()
-        scroll.hasHorizontalScroller = true
-        scroll.hasVerticalScroller = true
-        scroll.autohidesScrollers = true
-        scroll.allowsMagnification = true
-        scroll.minMagnification = 0.25
-        scroll.maxMagnification = 4
-        scroll.documentView = imageView
-        scroll.onMagnification = { [weak self] in self?.updatePercentage() }
-        scroll.setAccessibilityLabel("钉图预览，可滚动平移和捏合缩放")
-        imageView.onCopy = { [weak self] in self?.copyImage() }
-        imageView.onClose = onClose
+        setAccessibilityElement(true)
+        setAccessibilityRole(.image)
+        setAccessibilityLabel("钉图，\(capture.image.width) × \(capture.image.height) 像素。拖动移动，捏合缩放，Esc 关闭")
 
-        let minus = button("−", action: #selector(zoomOut), help: "缩小")
-        let plus = button("+", action: #selector(zoomIn), help: "放大")
-        let actual = button("100%", action: #selector(actualPixels), help: "实际像素：一图像像素对应一屏幕像素")
-        let fit = button("适配", action: #selector(fitImage), help: "适配窗口")
-        let copy = button("复制", action: #selector(copyImage), help: "复制图像，仅限本机")
-        let close = button("关闭", action: #selector(closeImage), help: "关闭这张钉图")
-        percentage.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-        percentage.textColor = .secondaryLabelColor
+        let menu = NSMenu(title: "钉图")
+        menu.addItem(withTitle: "复制图像", action: #selector(copyImage), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "实际大小", action: #selector(actualSize), keyEquivalent: "").target = self
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "关闭钉图", action: #selector(closeImage), keyEquivalent: "").target = self
+        self.menu = menu
+
+        let zoomOut = symbolButton("minus.magnifyingglass", action: #selector(zoomOut), help: "缩小（⌘−）")
+        let zoomIn = symbolButton("plus.magnifyingglass", action: #selector(zoomIn), help: "放大（⌘+）")
+        percentage.target = self
+        percentage.action = #selector(actualSize)
+        percentage.isBordered = false
+        percentage.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+        percentage.toolTip = "实际大小：一图像像素对应一屏幕像素（⌘0）"
         percentage.setContentHuggingPriority(.required, for: .horizontal)
-        let spacer = NSView()
-        let controls = NSStackView(views: [minus, plus, actual, fit, percentage, spacer, copy, close])
-        controls.orientation = .horizontal
-        controls.spacing = 4
-        controls.edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
-        controls.setHuggingPriority(.defaultLow, for: .horizontal)
-        errorLabel.textColor = .systemRed
-        errorLabel.font = .systemFont(ofSize: 11)
-        errorLabel.isHidden = true
-        let stack = NSStackView(views: [controls, errorLabel, scroll])
-        stack.orientation = .vertical
-        stack.alignment = .width
-        stack.spacing = 0
+        let copy = symbolButton("doc.on.doc", action: #selector(copyImage), help: "复制图像，仅限本机（⌘C）")
+        let close = symbolButton("xmark", action: #selector(closeImage), help: "关闭钉图（Esc）")
+        let stack = NSStackView(views: [zoomOut, zoomIn, percentage, copy, close])
+        stack.orientation = .horizontal
+        stack.spacing = 2
+        stack.edgeInsets = NSEdgeInsets(top: 3, left: 4, bottom: 3, right: 4)
+        stack.detachesHiddenViews = true
+        // Small pins drop the zoom controls first; copy and close always stay reachable.
+        for view in [zoomOut, zoomIn, percentage] { stack.setVisibilityPriority(.detachOnlyIfNecessary, for: view) }
         stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
+
+        controls.material = .hudWindow
+        controls.blendingMode = .withinWindow
+        controls.state = .active
+        controls.appearance = NSAppearance(named: .vibrantDark)
+        controls.wantsLayer = true
+        controls.layer?.cornerRadius = 7
+        controls.layer?.masksToBounds = true
+        controls.alphaValue = 0
+        controls.translatesAutoresizingMaskIntoConstraints = false
+        controls.addSubview(stack)
+        addSubview(controls)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 60)
+            stack.leadingAnchor.constraint(equalTo: controls.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: controls.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: controls.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: controls.bottomAnchor),
+            controls.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            controls.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            controls.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 6)
         ])
+        updatePercentage()
     }
 
     required init?(coder: NSCoder) { nil }
 
-    private func button(_ title: String, action: Selector, help: String) -> NSButton {
-        let button = NSButton(title: title, target: self, action: action)
-        button.bezelStyle = .texturedRounded
-        button.controlSize = .small
+    private func symbolButton(_ symbol: String, action: Selector, help: String) -> NSButton {
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: help) ?? NSImage()
+        let button = NSButton(image: image, target: self, action: action)
+        button.isBordered = false
+        button.symbolConfiguration = .init(pointSize: 12, weight: .medium)
         button.toolTip = help
         button.setAccessibilityLabel(help)
+        button.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 22).isActive = true
         return button
     }
 
-    func configureForDisplay(fit: Bool) {
-        let backing = window?.backingScaleFactor ?? 1
-        imageView.setFrameSize(NSSize(width: CGFloat(capture.image.width) / backing,
-                                     height: CGFloat(capture.image.height) / backing))
-        layoutSubtreeIfNeeded()
-        if fit { fitImage() }
-        else { updatePercentage() }
+    override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { true }
+    override var mouseDownCanMoveWindow: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    private var naturalSize: CGSize {
+        let backing = window?.backingScaleFactor ?? 2
+        return CGSize(width: CGFloat(capture.image.width) / backing, height: CGFloat(capture.image.height) / backing)
     }
+
+    /// Adopts the zoom implied by the controller's initial (possibly screen-fitted) frame.
+    func synchronizeZoomWithWindow() {
+        guard let window, naturalSize.width > 0 else { return }
+        zoom = window.frame.width / naturalSize.width
+        updatePercentage()
+    }
+
+    /// Keeps the same relative zoom when the pin moves to a display with another scale.
+    func backingScaleDidChange() { setZoom(zoom) }
 
     func invalidate() {
         copyTask?.cancel()
         copyTask = nil
+        feedbackTask?.cancel()
+        feedbackTask = nil
     }
 
-    @objc private func zoomIn() { setZoom(scroll.magnification * 1.25) }
-    @objc private func zoomOut() { setZoom(scroll.magnification / 1.25) }
-    @objc private func actualPixels() { setZoom(1) }
+    override func draw(_ dirtyRect: NSRect) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        context.saveGState()
+        context.translateBy(x: 0, y: bounds.height)
+        context.scaleBy(x: 1, y: -1)
+        context.interpolationQuality = .high
+        context.draw(capture.image, in: bounds)
+        context.restoreGState()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  owner: self)
+        addTrackingArea(area)
+        hoverTracking = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { setControlsVisible(true) }
+    override func mouseExited(with event: NSEvent) { setControlsVisible(false) }
+
+    private func setControlsVisible(_ visible: Bool) {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.15
+            controls.animator().alphaValue = visible ? 1 : 0
+        }
+    }
+
+    override func magnify(with event: NSEvent) { setZoom(zoom * (1 + event.magnification)) }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { onClose() } else { super.keyDown(with: event) }
+    }
+
+    override func cancelOperation(_ sender: Any?) { onClose() }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard window?.isKeyWindow == true, flags == .command || flags == [.command, .shift] else {
+            return super.performKeyEquivalent(with: event)
+        }
+        switch event.charactersIgnoringModifiers {
+        case "c" where flags == .command: copyImage()
+        case "w" where flags == .command: onClose()
+        case "=", "+": zoomIn()
+        case "-": zoomOut()
+        case "0" where flags == .command: actualSize()
+        default: return super.performKeyEquivalent(with: event)
+        }
+        return true
+    }
+
+    @objc private func zoomIn() { setZoom(zoom * 1.25) }
+    @objc private func zoomOut() { setZoom(zoom / 1.25) }
+    @objc private func actualSize() { setZoom(1) }
     @objc private func closeImage() { onClose() }
 
-    @objc private func fitImage() {
-        let size = scroll.contentSize
-        let imageSize = imageView.frame.size
-        guard size.width > 0, size.height > 0, imageSize.width > 0, imageSize.height > 0 else { return }
-        setZoom(min(size.width / imageSize.width, size.height / imageSize.height))
-    }
-
-    private func setZoom(_ scale: CGFloat) {
-        let center = NSPoint(x: scroll.contentView.bounds.midX, y: scroll.contentView.bounds.midY)
-        scroll.setMagnification(min(4, max(0.25, scale)), centeredAt: center)
+    private func setZoom(_ value: CGFloat) {
+        guard let window else { return }
+        let visible = window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? window.frame
+        let natural = naturalSize
+        zoom = PinnedImageLayout.clampedZoom(value, natural: natural, visible: visible.size)
+        let frame = PinnedImageLayout.zoomedFrame(window.frame, natural: natural, zoom: zoom, visible: visible)
+        if frame != window.frame { window.setFrame(frame, display: true) }
+        window.invalidateShadow()
         updatePercentage()
     }
 
     private func updatePercentage() {
-        percentage.stringValue = "\(Int((scroll.magnification * 100).rounded()))%"
-        percentage.setAccessibilityValue(percentage.stringValue)
+        guard feedbackTask == nil else { return }
+        percentage.title = "\(Int((zoom * 100).rounded()))%"
+        percentage.setAccessibilityValue(percentage.title)
+    }
+
+    /// Brief inline confirmation in the percentage slot instead of a separate error row.
+    private func showFeedback(_ message: String) {
+        feedbackTask?.cancel()
+        percentage.title = message
+        setControlsVisible(true)
+        NSAccessibility.post(element: self, notification: .announcementRequested,
+                             userInfo: [.announcement: message, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        feedbackTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.2))
+            guard let self, !Task.isCancelled else { return }
+            self.feedbackTask = nil
+            self.updatePercentage()
+        }
     }
 
     @objc private func copyImage() {
@@ -121,106 +214,14 @@ final class PinnedImageView: NSView {
                 try Task.checkCancellation()
                 guard let self else { return }
                 try ClipboardService().copyImage(pngData: png)
-                self.errorLabel.isHidden = true
                 self.copyTask = nil
+                self.showFeedback("已复制")
             } catch {
                 guard let self else { return }
                 self.copyTask = nil
                 guard !(error is CancellationError) else { return }
-                self.errorLabel.stringValue = "复制失败，请重试。"
-                self.errorLabel.isHidden = false
+                self.showFeedback("复制失败")
             }
         }
     }
-}
-
-@MainActor
-private final class PinnedScrollView: NSScrollView {
-    var onMagnification: (() -> Void)?
-    override func magnify(with event: NSEvent) {
-        super.magnify(with: event)
-        onMagnification?()
-    }
-}
-
-@MainActor
-private final class CenteredPinnedClipView: NSClipView {
-    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
-        var result = super.constrainBoundsRect(proposedBounds)
-        if let documentView {
-            if result.width > documentView.frame.width {
-                result.origin.x = (documentView.frame.width - result.width) / 2
-            }
-            if result.height > documentView.frame.height {
-                result.origin.y = (documentView.frame.height - result.height) / 2
-            }
-        }
-        return result
-    }
-}
-
-@MainActor
-private final class PinnedImageCanvas: NSView {
-    private let image: CGImage
-    var onCopy: (() -> Void)?
-    var onClose: (() -> Void)?
-    private var panOrigin: NSPoint?
-    private var mouseOrigin: NSPoint?
-    override var isFlipped: Bool { true }
-    override var mouseDownCanMoveWindow: Bool { false }
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    init(image: CGImage) {
-        self.image = image
-        super.init(frame: NSRect(x: 0, y: 0, width: image.width, height: image.height))
-        setAccessibilityElement(true)
-        setAccessibilityRole(.image)
-        setAccessibilityLabel("已合成的钉图，\(image.width) × \(image.height) 像素")
-        let menu = NSMenu(title: "钉图")
-        let copy = menu.addItem(withTitle: "复制图像", action: #selector(copyPinned), keyEquivalent: "")
-        copy.target = self
-        let close = menu.addItem(withTitle: "关闭钉图", action: #selector(closePinned), keyEquivalent: "")
-        close.target = self
-        self.menu = menu
-    }
-
-    required init?(coder: NSCoder) { nil }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let context = NSGraphicsContext.current?.cgContext else { return }
-        context.saveGState()
-        context.translateBy(x: 0, y: bounds.height)
-        context.scaleBy(x: 1, y: -1)
-        context.interpolationQuality = .high
-        context.draw(image, in: bounds)
-        context.restoreGState()
-    }
-
-    override func resetCursorRects() { addCursorRect(bounds, cursor: .openHand) }
-
-    override func mouseDown(with event: NSEvent) {
-        panOrigin = enclosingScrollView?.contentView.bounds.origin
-        mouseOrigin = event.locationInWindow
-        NSCursor.closedHand.push()
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard let scroll = enclosingScrollView, let panOrigin, let mouseOrigin else { return }
-        let scale = scroll.magnification
-        let delta = NSPoint(x: (event.locationInWindow.x - mouseOrigin.x) / scale,
-                            y: (event.locationInWindow.y - mouseOrigin.y) / scale)
-        let proposed = NSRect(origin: NSPoint(x: panOrigin.x - delta.x, y: panOrigin.y + delta.y),
-                              size: scroll.contentView.bounds.size)
-        scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(proposed).origin)
-        scroll.reflectScrolledClipView(scroll.contentView)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        if mouseOrigin != nil { NSCursor.pop() }
-        mouseOrigin = nil
-        panOrigin = nil
-    }
-
-    @objc private func copyPinned() { onCopy?() }
-    @objc private func closePinned() { onClose?() }
 }

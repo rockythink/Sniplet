@@ -11,6 +11,7 @@ final class AppCoordinator {
     private(set) var historyLoading = false
     private(set) var historyError: String?
     private(set) var historyRecoveryMessages: [String] = []
+    private(set) var pinCount = 0
 
     @ObservationIgnored lazy var shortcuts = GlobalHotKeyManager { [weak self] mode in
         self?.requestCapture(mode)
@@ -49,6 +50,7 @@ final class AppCoordinator {
     func start() {
         guard !started, !AppRuntime.isUnitTesting else { return }
         started = true
+        pins.onCountChange = { [weak self] count in self?.pinCount = count }
         permissions.refresh()
         shortcuts.registerSavedShortcuts()
         initializeHistory()
@@ -183,9 +185,15 @@ final class AppCoordinator {
         if hadCapture { showError("显示器布局已改变，本次截图已取消，请重试。") }
     }
 
+    /// Recovery panels share these services, so match the panel that owns this capture.
+    private func pinAnchor(for capture: RenderedCapture) -> CGRect? {
+        let panels = [editor].compactMap { $0 } + Array(recoveryPanels.values)
+        return panels.first { $0.session.id == capture.id }?.pinAnchorRect
+    }
+
     private var editorServices: EditorServices {
         EditorServices(renderer: renderer, encoder: encoder, ocr: ocr, files: files,
-                       pin: { [weak self] capture in self?.pins.pin(capture) },
+                       pin: { [weak self] capture in self?.pins.pin(capture, at: self?.pinAnchor(for: capture)) },
                        isOCREnabled: { [weak self] in self?.preferences.ocrEnabled == true },
                        shouldStoreHistory: { [weak self] in self?.preferences.historyEnabled == true },
                        persist: { [weak self] capture, png in
@@ -425,11 +433,21 @@ final class AppCoordinator {
         }
     }
 
+    func closeAllPins() { pins.closeAll() }
+
     private func showFirstLaunchGuidance() {
         guard !UserDefaults.standard.bool(forKey: "app.hasShownIntroduction") else { return }
         let alert = NSAlert()
         alert.messageText = "Sniplet 已在菜单栏就绪"
-        alert.informativeText = "从菜单栏或按 ⇧⌘A 开始截图；在选区原位标注，下方工具条调整标注与美化，侧边工具条复制、保存或钉图。默认截图样式可在设置中修改。只有主动截图时才请求屏幕录制权限，图像和文字仅在本机处理。"
+        alert.informativeText = """
+            从菜单栏或按 ⇧⌘A 开始截图，在选区原位标注，再复制、保存、钉图或拖出。
+
+            · 单键切换工具：V 选择、A 箭头、R 矩形、P 画笔、T 文字、M 马赛克、H 高亮
+            · 绘图工具下第一次 Esc 回到选择，再按 Esc 丢弃截图
+            · 钉图可拖动、捏合缩放，Esc 关闭
+
+            ⇧⌘A 会覆盖 Finder 的「前往应用程序」，可在设置 → 快捷键中修改。只有主动截图时才请求屏幕录制权限，图像和文字仅在本机处理。
+            """
         alert.addButton(withTitle: "知道了")
         alert.runForSniplet()
         UserDefaults.standard.set(true, forKey: "app.hasShownIntroduction")

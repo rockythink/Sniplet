@@ -40,10 +40,12 @@
 		72233325C23186DD86BD4206 /* EditorSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 083C931741FC28DE985173D0 /* EditorSessionTests.swift */; };
 		74F1A704804252AE5611F94A /* ThirdPartyNotices.txt in Resources */ = {isa = PBXBuildFile; fileRef = 18AED898AD25B03E64D117CD /* ThirdPartyNotices.txt */; };
 		74FE8B047F932D95DF94C01E /* CaptureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8A84CE3F7DBFA2202851AD /* CaptureModels.swift */; };
+		76245657624D41CF1AF0FC39 /* AnnotationTextFormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB36ED77B6348D9F1ADDD826 /* AnnotationTextFormatTests.swift */; };
 		776A942BA8583005FD9A46AB /* DragExportPasteboardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94E12933595A604528BA80C3 /* DragExportPasteboardTests.swift */; };
 		78B154593CBB44DA89B99DF2 /* CaptureStyleEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62076C0ADEC59E6E599E7192 /* CaptureStyleEditingTests.swift */; };
 		7B65B456910FB0D0A886A03B /* HistoryWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB5A833EE5044EF8C87D738A /* HistoryWindowController.swift */; };
 		7E3EF3C90A172744713928EA /* CaptureWorkflowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5992502268B9FEBAE76AD68E /* CaptureWorkflowController.swift */; };
+		7ED9A9162050C1AB4B9FABA3 /* PinnedImageLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0186A5E548649F22BAB251FA /* PinnedImageLayoutTests.swift */; };
 		80727B85AA4DB76EC540296B /* EditorSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD316B7F0EBEDCE5A9BDAE82 /* EditorSession.swift */; };
 		8238357F5AFBC94D0C45EFBC /* PinnedImageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33AEB98F07F31B05554315C1 /* PinnedImageController.swift */; };
 		86DCB0A4D4F5617A9EA1B7AE /* SessionTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41B147C5B5008663ECCB88C2 /* SessionTestSupport.swift */; };
@@ -106,6 +108,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0186A5E548649F22BAB251FA /* PinnedImageLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedImageLayoutTests.swift; sourceTree = "<group>"; };
 		01FFA31365EC86FDBFE2F050 /* AnnotationDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationDocument.swift; sourceTree = "<group>"; };
 		037A27B8D7919C0FDE435158 /* OCRResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRResultView.swift; sourceTree = "<group>"; };
 		04BA8E9875568C4492F9C46A /* InlineSelectionOutlineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineSelectionOutlineTests.swift; sourceTree = "<group>"; };
@@ -188,6 +191,7 @@
 		E75A9EC910EBEB1FF3D61F8E /* ImageRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRenderer.swift; sourceTree = "<group>"; };
 		E796F6C347E3F9B7E188A07E /* OCRConsistencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRConsistencyTests.swift; sourceTree = "<group>"; };
 		E88F55204A1BF3A7D858063F /* CaptureSelectionResizeGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSelectionResizeGeometryTests.swift; sourceTree = "<group>"; };
+		EB36ED77B6348D9F1ADDD826 /* AnnotationTextFormatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationTextFormatTests.swift; sourceTree = "<group>"; };
 		EB93FA2292AC22E278AA131D /* CaptureStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureStyle.swift; sourceTree = "<group>"; };
 		F4D077173A0B72A56FB74934 /* ClipboardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardService.swift; sourceTree = "<group>"; };
 		FA693D2CD038253AFA960F46 /* CaptureSelectionResizeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSelectionResizeTests.swift; sourceTree = "<group>"; };
@@ -343,6 +347,7 @@
 			children = (
 				4F00833EBC2533F98FA143C2 /* AnnotationEditingTests.swift */,
 				6BB954C0D6BF6B8D03FE932D /* AnnotationPreviewCoordinatorTests.swift */,
+				EB36ED77B6348D9F1ADDD826 /* AnnotationTextFormatTests.swift */,
 				E53BC91AE4D57D6E4C22C50B /* AnnotationToolResetTests.swift */,
 				9DE257663797EED746CB8BCA /* AppPreferencesTests.swift */,
 				532586993B1579210459A110 /* CaptureSelectionMoveTests.swift */,
@@ -364,6 +369,7 @@
 				E796F6C347E3F9B7E188A07E /* OCRConsistencyTests.swift */,
 				83FC05DA998708D5542AEA40 /* OCRReadingOrderTests.swift */,
 				7730718637CB359DFD4ACEDA /* OCRRecognitionTests.swift */,
+				0186A5E548649F22BAB251FA /* PinnedImageLayoutTests.swift */,
 				70C4B67B847D56829CAA6564 /* SelectionCaptureOutputTests.swift */,
 				41B147C5B5008663ECCB88C2 /* SessionTestSupport.swift */,
 				3FC391D60997E7B68F3C20C9 /* ShortcutPolicyTests.swift */,
@@ -508,6 +514,7 @@
 			files = (
 				A5D7D2D15F4C22D36F0BE7E1 /* AnnotationEditingTests.swift in Sources */,
 				37D821382B4A9EFD5C8E02B3 /* AnnotationPreviewCoordinatorTests.swift in Sources */,
+				76245657624D41CF1AF0FC39 /* AnnotationTextFormatTests.swift in Sources */,
 				720E29E76ECA8245B666E037 /* AnnotationToolResetTests.swift in Sources */,
 				59E05330C9D09538446D54AA /* AppPreferencesTests.swift in Sources */,
 				712070E899A2AAB0DD6BE5F4 /* CaptureSelectionMoveTests.swift in Sources */,
@@ -529,6 +536,7 @@
 				2862DA3786774EC2A900BBE8 /* OCRConsistencyTests.swift in Sources */,
 				FFA52E9E3E8D7523E4EC9213 /* OCRReadingOrderTests.swift in Sources */,
 				DE88D5D554935E0CB282CDD2 /* OCRRecognitionTests.swift in Sources */,
+				7ED9A9162050C1AB4B9FABA3 /* PinnedImageLayoutTests.swift in Sources */,
 				B6DE5D3A2525772499AF8FBB /* SelectionCaptureOutputTests.swift in Sources */,
 				86DCB0A4D4F5617A9EA1B7AE /* SessionTestSupport.swift in Sources */,
 				C78FAD07FE6F26DF8294E55F /* ShortcutPolicyTests.swift in Sources */,

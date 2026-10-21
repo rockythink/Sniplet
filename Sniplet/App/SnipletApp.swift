@@ -34,6 +34,9 @@ private struct SnipletMenu: View {
         }
         Divider()
         Button("截图历史…", action: coordinator.showHistory)
+        if coordinator.pinCount > 0 {
+            Button("关闭所有钉图（\(coordinator.pinCount)）", action: coordinator.closeAllPins)
+        }
         Button("设置…") {
             NSApp.activate(ignoringOtherApps: true)
             openSettings()
