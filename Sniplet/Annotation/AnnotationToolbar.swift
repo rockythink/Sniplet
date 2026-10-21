@@ -72,6 +72,13 @@ private struct AnnotationTextFormatButtons: View {
             .help("加粗（⌘B）")
             .accessibilityLabel("加粗")
             .accessibilityAddTraits(style.isBold ? [.isSelected] : [])
+            Button { editor.toggleTextBackground() } label: {
+                Image(systemName: "character.textbox").frame(width: 32, height: 32)
+            }
+            .buttonStyle(InlineToolbarButtonStyle(isSelected: style.hasTextBackground))
+            .help("文字底色：用当前颜色垫一块底，文字自动变黑或白，在复杂背景上更清楚")
+            .accessibilityLabel("文字底色")
+            .accessibilityAddTraits(style.hasTextBackground ? [.isSelected] : [])
         }
         .buttonStyle(InlineToolbarButtonStyle())
     }

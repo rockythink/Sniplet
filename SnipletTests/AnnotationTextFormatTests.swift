@@ -91,4 +91,39 @@ import Testing
         #expect(!editor.undoManager.canUndo)
         #expect(editor.document.annotations.isEmpty)
     }
+
+    @Test func backgroundTextPicksAContrastingColorAndPadsItsBox() {
+        var style = AnnotationStyle(color: .red, fontSize: 32)
+        let plain = AnnotationTextLayout.fittedRect("底色", style: style, origin: .zero, in: bounds)
+        style.hasTextBackground = true
+        let padded = AnnotationTextLayout.fittedRect("底色", style: style, origin: .zero, in: bounds)
+        let pad = AnnotationTextLayout.padding(style)
+        #expect(pad.width > 0 && pad.height > 0)
+        #expect(padded.width > plain.width && padded.height > plain.height)
+        #expect(AnnotationTextLayout.textColor(style) == .white)
+        for (color, expected) in [(AnnotationColor.yellow, AnnotationColor.black), (.white, .black),
+                                  (.blue, .white), (.black, .white)] {
+            style.color = color
+            #expect(AnnotationTextLayout.textColor(style) == expected)
+        }
+        style.hasTextBackground = false
+        style.color = .yellow
+        #expect(AnnotationTextLayout.textColor(style) == .yellow)
+    }
+
+    @Test func backgroundBlockIsRenderedBehindTheText() throws {
+        let editor = try editor()
+        let style = AnnotationStyle(color: .blue, fontSize: 32, hasTextBackground: true)
+        let rect = AnnotationTextLayout.fittedRect("Hi", style: style, origin: CGPoint(x: 40, y: 40), in: bounds)
+        var document = editor.document
+        document.annotations = [Annotation(payload: .text(rect: rect, text: "Hi"), style: style)]
+        let context = try AnnotationCompositor.bitmap(width: 400, height: 300)
+        AnnotationCompositor.drawOrdinary(document, in: context)
+        let image = try #require(context.makeImage())
+        // Inside the padding, clear of the rounded corners: the block's blue.
+        let inside = try SessionTestSupport.pixel(image, x: Int(rect.midX), y: Int(rect.minY) + 2)
+        #expect(inside[2] > 200 && inside[0] < 60 && inside[3] == 255)
+        let outside = try SessionTestSupport.pixel(image, x: Int(rect.midX), y: Int(rect.minY) - 4)
+        #expect(outside[2] < 200)
+    }
 }

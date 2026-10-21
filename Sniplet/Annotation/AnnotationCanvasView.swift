@@ -270,6 +270,14 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         }
         let unit = pixelTolerance/6
         if let textView {
+            // The input is transparent, so the canvas draws a text background block under it.
+            if let style = textAnnotation?.style, style.hasTextBackground {
+                let rect = textView.frame
+                let radius = min(AnnotationTextLayout.backgroundCornerRadius(style), rect.width / 2, rect.height / 2)
+                context.setFillColor(style.color.cgColor)
+                context.addPath(CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil))
+                context.fillPath()
+            }
             // Editing chrome only: a dashed outline, never a filled box that looks rendered.
             context.saveGState()
             context.setStrokeColor(NSColor.controlAccentColor.cgColor)
@@ -580,7 +588,6 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         input.isRichText = false
         input.importsGraphics = false
         input.allowsUndo = true
-        input.textContainerInset = .zero
         input.textContainer?.lineFragmentPadding = 0
         input.isHorizontallyResizable = false
         input.isVerticallyResizable = false
@@ -596,7 +603,8 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         // Older or hand-resized boxes adopt the fitted size; the document follows on the first edit.
         input.frame = AnnotationTextLayout.fittedRect(string, style: annotation.style, origin: rect.origin,
                                                       in: editor.document.imageBounds)
-        input.textContainer?.containerSize = CGSize(width: input.frame.width, height: .greatestFiniteMagnitude)
+        input.textContainer?.containerSize = CGSize(
+            width: input.frame.width - 2 * input.textContainerInset.width, height: .greatestFiniteMagnitude)
         addSubview(input)
         editor.isEditingText = true
         window?.makeFirstResponder(input)
@@ -605,7 +613,8 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
     }
 
     private func applyInputStyle(_ style: AnnotationStyle, to input: AnnotationTextInputView) {
-        let color = NSColor(cgColor: style.color.cgColor) ?? .labelColor
+        let color = NSColor(cgColor: AnnotationTextLayout.textColor(style).cgColor) ?? .labelColor
+        input.textContainerInset = AnnotationTextLayout.padding(style)
         input.font = AnnotationTextLayout.font(style) as NSFont
         input.textColor = color
         input.insertionPointColor = color
@@ -633,8 +642,11 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         if input.frame != fitted {
             setNeedsDisplay(input.frame.union(fitted).insetBy(dx: -pixelTolerance, dy: -pixelTolerance))
             input.frame = fitted
-            input.textContainer?.containerSize = CGSize(width: fitted.width, height: .greatestFiniteMagnitude)
+            input.textContainer?.containerSize = CGSize(
+                width: fitted.width - 2 * input.textContainerInset.width, height: .greatestFiniteMagnitude)
         }
+        // A background toggle changes the block without moving the frame.
+        needsDisplay = true
         // Invalidates in-flight OCR even before the native text field is committed.
         editor.updateTransaction(annotation)
     }

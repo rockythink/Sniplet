@@ -80,7 +80,11 @@ import Testing
         #expect(!editor.undoManager.canRedo)
     }
 
-    @Test(arguments: [AnnotationKind.rectangle, .text, .mosaic, .highlight])
+    @Test func textFitsItsContentInsteadOfOfferingResizeHandles() {
+        #expect(AnnotationGeometry.handles(annotation(.text)).isEmpty)
+    }
+
+    @Test(arguments: [AnnotationKind.rectangle, .mosaic, .highlight])
     func allRectangularObjectsHaveEditableCorners(_ kind: AnnotationKind) throws {
         let editor = AnnotationEditor(capture: try capture())
         let original = annotation(kind)

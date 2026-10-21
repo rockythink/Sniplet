@@ -82,7 +82,8 @@ nonisolated enum AnnotationGeometry {
     static func handles(_ annotation: Annotation) -> [(AnnotationHandle, CGPoint)] {
         switch annotation.payload {
         case let .arrow(a, b): return [(.start, a), (.end, b)]
-        case .pen: return []
+        // Text boxes always fit their content, so a hand-set size would not survive the next edit.
+        case .pen, .text: return []
         default:
             let r = bounds(annotation)
             return [(.corner(0), CGPoint(x: r.minX, y: r.minY)),
@@ -146,24 +147,41 @@ nonisolated enum AnnotationTextLayout {
     static func attributedString(_ text: String, style: AnnotationStyle) -> NSAttributedString {
         NSAttributedString(string: text, attributes: [
             NSAttributedString.Key(kCTFontAttributeName as String): font(style),
-            NSAttributedString.Key(kCTForegroundColorAttributeName as String): style.color.cgColor
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): textColor(style).cgColor
         ])
     }
 
+    /// Black or white on a background block, picked by the block's luminance.
+    static func textColor(_ style: AnnotationStyle) -> AnnotationColor {
+        guard style.hasTextBackground else { return style.color }
+        let color = style.color
+        let luminance = 0.2126 * color.red + 0.7152 * color.green + 0.0722 * color.blue
+        return luminance > 0.6 ? .black : .white
+    }
+
+    /// Space between the background block's edge and the text; zero without a background.
+    static func padding(_ style: AnnotationStyle) -> CGSize {
+        guard style.hasTextBackground else { return .zero }
+        return CGSize(width: (style.fontSize * 0.35).rounded(), height: (style.fontSize * 0.2).rounded())
+    }
+
+    static func backgroundCornerRadius(_ style: AnnotationStyle) -> CGFloat { style.fontSize * 0.25 }
+
     /// The smallest box at `origin` showing all of `text`; it wraps only at the image edge.
     static func fittedRect(_ text: String, style: AnnotationStyle, origin: CGPoint, in bounds: CGRect) -> CGRect {
-        let maxWidth = max(style.fontSize, bounds.maxX - origin.x)
+        let pad = padding(style)
+        let maxWidth = max(style.fontSize + 2 * pad.width, bounds.maxX - origin.x)
         // An empty text or a trailing newline still needs room for the caret's line.
         let measured = text.isEmpty || text.hasSuffix("\n") ? text + " " : text
         let framesetter = CTFramesetterCreateWithAttributedString(attributedString(measured, style: style))
         let size = CTFramesetterSuggestFrameSizeWithConstraints(
             framesetter, CFRange(location: 0, length: 0), nil,
-            CGSize(width: maxWidth, height: .greatestFiniteMagnitude), nil)
+            CGSize(width: maxWidth - 2 * pad.width, height: .greatestFiniteMagnitude), nil)
         // Slack keeps CoreText from dropping the last line or wrapping on rounding.
         let slack = max(2, style.fontSize / 8)
         return CGRect(x: origin.x, y: origin.y,
-                      width: min(maxWidth, max(style.fontSize, ceil(size.width) + slack)),
-                      height: ceil(size.height) + slack)
+                      width: min(maxWidth, max(style.fontSize, ceil(size.width) + slack) + 2 * pad.width),
+                      height: ceil(size.height) + slack + 2 * pad.height)
     }
 
     /// Text marks follow their content; other marks are returned unchanged.

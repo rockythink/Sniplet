@@ -263,13 +263,21 @@ nonisolated enum AnnotationCompositor {
                 context.setFillColor(AnnotationColor.highlight.cgColor)
                 context.fill(rect)
             case let .text(rect, text):
+                if annotation.style.hasTextBackground {
+                    let radius = min(AnnotationTextLayout.backgroundCornerRadius(annotation.style),
+                                     rect.width / 2, rect.height / 2)
+                    context.addPath(CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil))
+                    context.fillPath()
+                }
+                let pad = AnnotationTextLayout.padding(annotation.style)
+                let textRect = rect.insetBy(dx: pad.width, dy: pad.height)
                 context.clip(to: rect)
-                context.translateBy(x: rect.minX, y: rect.maxY)
+                context.translateBy(x: textRect.minX, y: textRect.maxY)
                 context.scaleBy(x: 1, y: -1)
                 context.textMatrix = .identity
                 let string = AnnotationTextLayout.attributedString(text, style: annotation.style)
                 let framesetter = CTFramesetterCreateWithAttributedString(string)
-                let path = CGPath(rect: CGRect(origin: .zero, size: rect.size), transform: nil)
+                let path = CGPath(rect: CGRect(origin: .zero, size: textRect.size), transform: nil)
                 CTFrameDraw(CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil), context)
             case .mosaic: break
             }

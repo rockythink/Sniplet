@@ -185,6 +185,12 @@ import Observation
         setStyle(newStyle)
     }
 
+    func toggleTextBackground() {
+        var newStyle = activeStyle
+        newStyle.hasTextBackground.toggle()
+        setStyle(newStyle)
+    }
+
     func beginCaptureStyleTransaction() {
         guard isValid, isInteractionEnabled, captureStyleBeforeTransaction == nil else { return }
         commitTextEditing()

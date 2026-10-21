@@ -71,6 +71,8 @@ nonisolated struct AnnotationStyle: Equatable, Sendable {
     var lineWidth: CGFloat = 2
     var fontSize: CGFloat = 16
     var isBold = false
+    /// Text only: a rounded block of `color` behind the text, which then uses a contrasting color.
+    var hasTextBackground = false
 }
 
 nonisolated enum AnnotationPayload: Equatable, Sendable {
