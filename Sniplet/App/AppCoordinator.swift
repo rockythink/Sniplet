@@ -456,11 +456,28 @@ final class AppCoordinator {
     func closeAllPins() { pins.closeAll() }
 
     private func showFirstLaunchGuidance() {
-        guard !UserDefaults.standard.bool(forKey: "app.hasShownIntroduction") else { return }
+        let defaults = UserDefaults.standard
+        switch LaunchGuidance.next(in: defaults) {
+        case .none: return
+        case .whatsNew: showWhatsNew()
+        case .introduction: showIntroduction()
+        }
+        LaunchGuidance.markShown(in: defaults)
+    }
+
+    private func showWhatsNew() {
+        let alert = NSAlert()
+        alert.messageText = LaunchGuidance.whatsNewTitle
+        alert.informativeText = LaunchGuidance.whatsNewText
+        alert.addButton(withTitle: "好的")
+        alert.runForSniplet()
+    }
+
+    private func showIntroduction() {
         let alert = NSAlert()
         alert.messageText = "Sniplet 已在菜单栏就绪"
         alert.informativeText = """
-            从菜单栏或按 ⇧⌘A 开始截图，在选区原位标注，再复制、保存、钉图或拖出。
+            从菜单栏或按 ⇧⌘A 开始截图，在选区原位标注，再复制、保存、钉图或拖出。⌃⌥⌘4 可直接重复上次的区域。
 
             · 单键切换工具：V 选择、A 箭头、R 矩形、P 画笔、T 文字、N 序号、M 马赛克、H 高亮
             · 绘图工具下第一次 Esc 回到选择，再按 Esc 丢弃截图
@@ -470,7 +487,6 @@ final class AppCoordinator {
             """
         alert.addButton(withTitle: "知道了")
         alert.runForSniplet()
-        UserDefaults.standard.set(true, forKey: "app.hasShownIntroduction")
     }
 
     private func showError(_ message: String) {
