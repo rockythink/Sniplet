@@ -16,7 +16,7 @@ const presets = [
 const features = [
   { n: '01', icon: 'crop', title: '选中，就在这里编辑。', text: '截区域、窗口或当前屏幕，工具条就在选区旁。选好后拖动四角或四边调整大小；切到选择工具，拖动画面空白处就能移动取景框。', tags: ['原位标注', '八向调整选区'] },
   { n: '02', icon: 'sparkle', title: '好看的样式，设一次。', text: '圆角、阴影、边框，自由搭配。选好默认美化，之后的截图直接沿用，不必每张都从头调。', tags: ['四种预设', '默认美化'] },
-  { n: '03', icon: 'arrow', title: '说清楚，然后发出去。', text: '箭头、文字、矩形、画笔、马赛克和高亮。处理好的同一张最终图，可以复制、保存、钉住，或拖到支持收图的应用。', tags: ['六类标注', '统一最终成图'] },
+  { n: '03', icon: 'arrow', title: '说清楚，然后发出去。', text: '箭头、矩形、画笔、文字、序号、马赛克和高亮。文字可调字号、加粗、加底色，序号自动编号。处理好的同一张最终图，可以复制、保存、钉住，或拖到支持收图的应用。', tags: ['七类标注', '统一最终成图'] },
 ];
 const faqs = [
   { q: '免费吗？有账号或订阅吗？', a: '免费，MIT 许可证开源。下载后就能使用，不需要注册账号，也没有订阅解锁或云端服务。你也可以查看源码、修改和自行构建。' },
@@ -90,7 +90,7 @@ const faqs = [
               </div>
               <div class="selection-outline" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
               <div class="demo-side-tools" aria-hidden="true"><Icon name="down" size={17}/><Icon name="pin" size={17}/><Icon name="text" size={17}/><span></span><Icon name="check" size={17}/></div>
-              <div class="demo-bottom-tools" aria-hidden="true"><Icon name="move" size={17}/><Icon name="arrow" size={17}/><Icon name="square" size={17}/><Icon name="pen" size={17}/><Icon name="text" size={17}/><Icon name="mosaic" size={17}/><span></span><Icon name="sparkle" size={17}/><Icon name="undo" size={17}/></div>
+              <div class="demo-bottom-tools" aria-hidden="true"><Icon name="move" size={17}/><Icon name="arrow" size={17}/><Icon name="square" size={17}/><Icon name="pen" size={17}/><Icon name="text" size={17}/><Icon name="counter" size={17}/><Icon name="mosaic" size={17}/><Icon name="highlight" size={17}/><span></span><Icon name="sparkle" size={17}/><Icon name="undo" size={17}/></div>
             </div>
             <div class="stage-bottomline" aria-hidden="true"><span class="tiny-cross">+</span><span>就在选区旁。无需另开编辑窗口。</span><span class="tiny-cross">+</span></div>
           </div>
