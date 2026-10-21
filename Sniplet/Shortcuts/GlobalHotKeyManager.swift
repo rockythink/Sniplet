@@ -49,6 +49,8 @@ import Observation
         bindings[mode].map(ShortcutKeyNames.description) ?? "未设置"
     }
 
+    func isBound(_ mode: CaptureMode) -> Bool { bindings[mode] != nil }
+
     /// Register first; failures leave the previous binding and its persisted value intact.
     @discardableResult func set(_ binding: ShortcutBinding, for mode: CaptureMode) -> Bool {
         if bindings[mode] == binding, registrations[mode] != nil { errors[mode] = nil; return true }

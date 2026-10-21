@@ -6,7 +6,7 @@ final class HistoryWindowController: NSWindowController, NSWindowDelegate {
     var onClose: (() -> Void)?
 
     init(coordinator: AppCoordinator) {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
+        let window = HistoryWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
         window.title = "截图历史"
@@ -32,5 +32,19 @@ final class HistoryWindowController: NSWindowController, NSWindowDelegate {
         window?.contentView = nil
         onClose?()
         onClose = nil
+    }
+}
+
+/// SwiftUI toolbar shortcuts are window key equivalents and would take ⌘C from the search
+/// field. Selected native text copies as text first, as in InlineCapturePanel.
+private final class HistoryWindow: NSWindow {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if flags == .command, event.charactersIgnoringModifiers?.lowercased() == "c",
+           let text = firstResponder as? NSTextView, text.selectedRange().length > 0 {
+            text.copy(nil)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
     }
 }

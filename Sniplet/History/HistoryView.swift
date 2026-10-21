@@ -6,7 +6,7 @@ struct HistoryView: View {
     private let onCopy: (UUID) -> Void
     private let onSave: (UUID) -> Void
     private let onPin: (UUID) -> Void
-    @State private var deletion: HistoryDeletion?
+    @State private var pendingDeletion: UUID?
 
     init(store: HistoryStore, indexer: HistoryIndexer,
          onCopy: @escaping (UUID) -> Void, onSave: @escaping (UUID) -> Void, onPin: @escaping (UUID) -> Void) {
@@ -29,23 +29,28 @@ struct HistoryView: View {
                 } else {
                     List(selection: $model.selection) {
                         ForEach(model.summaries) { summary in
-                            historyRow(summary)
-                                .tag(summary.id)
-                                .contextMenu {
-                                    Button("复制图像") { onCopy(summary.id) }
-                                    Button("保存…") { onSave(summary.id) }
-                                    Button("钉图") { onPin(summary.id) }
-                                    if summary.ocrStatus == .failed {
-                                        Button("重试识别") { indexer.retry(summary.id) }.disabled(!indexer.enabled)
-                                    }
-                                    Divider()
-                                    Button("删除…", role: .destructive) { deletion = .record(summary.id) }
-                                }
+                            historyRow(summary).tag(summary.id)
                         }
                     }
                     .listStyle(.sidebar)
+                    // Double-click pins, the most common way to keep an old capture in view.
+                    .contextMenu(forSelectionType: UUID.self) { ids in
+                        if let id = ids.first {
+                            Button("复制图像") { onCopy(id) }
+                            Button("保存…") { onSave(id) }
+                            Button("钉图") { onPin(id) }
+                            if model.summaries.first(where: { $0.id == id })?.ocrStatus == .failed {
+                                Button("重试识别") { indexer.retry(id) }.disabled(!indexer.enabled)
+                            }
+                            Divider()
+                            Button("删除…", role: .destructive) { pendingDeletion = id }
+                        }
+                    } primaryAction: { ids in
+                        if let id = ids.first { onPin(id) }
+                    }
+                    .help("双击钉图；右键查看复制、保存与删除")
                     .onDeleteCommand {
-                        if let id = model.selection { deletion = .record(id) }
+                        if let id = model.selection { pendingDeletion = id }
                     }
                 }
             }
@@ -99,25 +104,21 @@ struct HistoryView: View {
                 Button { if let id = model.selection { onPin(id) } } label: { Label("钉图", systemImage: "pin") }
                     .help("将最终图片钉在桌面")
                     .disabled(model.selectedCapture == nil)
-                Button { deletion = .all } label: { Label("清空历史…", systemImage: "trash") }
-                    .help("清空所有本地历史；不会关闭已钉的图片")
+                Button { pendingDeletion = model.selection } label: { Label("删除…", systemImage: "trash") }
+                    .help("删除选中的截图（Delete）；清空全部历史请到设置 → 隐私与历史")
+                    .disabled(model.selection == nil)
             }
         }
         .frame(minWidth: 720, idealWidth: 900, minHeight: 460, idealHeight: 600)
         .onAppear { model.start() }
         .onDisappear { model.stop() }
-        .alert(item: $deletion) { deletion in
-            Alert(
-                title: Text(deletion.isAll ? "清空所有历史？" : "删除这张截图？"),
-                message: Text("删除本地最终图片、缩略图与文字索引，无法撤销。已钉在桌面的图片需单独关闭。"),
-                primaryButton: .destructive(Text(deletion.isAll ? "清空历史" : "删除")) {
-                    Task {
-                        if case .record(let id) = deletion { await model.delete(id) }
-                        else { await model.clear() }
-                    }
-                },
-                secondaryButton: .cancel(Text("取消"))
-            )
+        .alert("删除这张截图？", isPresented: Binding(get: { pendingDeletion != nil },
+                                                      set: { if !$0 { pendingDeletion = nil } }),
+               presenting: pendingDeletion) { id in
+            Button("删除", role: .destructive) { Task { await model.delete(id) } }
+            Button("取消", role: .cancel) {}
+        } message: { _ in
+            Text("删除本地最终图片、缩略图与文字索引，无法撤销。已钉在桌面的图片需单独关闭。")
         }
     }
 
@@ -175,10 +176,4 @@ struct HistoryView: View {
         .padding(12)
         .accessibilityElement(children: .contain)
     }
-}
-
-private enum HistoryDeletion: Identifiable {
-    case record(UUID), all
-    var id: String { if case .record(let id) = self { id.uuidString } else { "all" } }
-    var isAll: Bool { if case .all = self { true } else { false } }
 }
