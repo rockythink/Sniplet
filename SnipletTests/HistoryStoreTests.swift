@@ -302,6 +302,24 @@ struct HistoryStoreTests {
     }
 }
 
+@MainActor struct HistoryDragOutTests {
+    @Test func dragOutOffersTheStoredPNGOfTheSelection() async throws {
+        let root = try temporaryHistoryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try await HistoryStoreFactory.make(rootURL: root)
+        let fixture = try await historyFixture(at: 1_800_000_000)
+        try await store.insert(fixture.capture, pngData: fixture.png)
+        let model = HistoryViewModel(store: store)
+        await #expect(throws: CancellationError.self) { try await model.encodedSelection() }
+        model.selection = fixture.capture.id
+        for _ in 0..<200 where model.selectedCapture == nil { try await Task.sleep(for: .milliseconds(5)) }
+        let encoded = try await model.encodedSelection()
+        #expect(encoded.pngData == fixture.png)
+        #expect(encoded.capture.id == fixture.capture.id)
+        #expect(encoded.capture.createdAt == fixture.capture.createdAt)
+    }
+}
+
 private func temporaryHistoryDirectory() throws -> URL {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("SnipletHistoryTests-\(UUID())", isDirectory: true)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

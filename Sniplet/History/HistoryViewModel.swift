@@ -95,6 +95,16 @@ final class HistoryViewModel {
         }
     }
 
+    /// The selected final image as stored, for dragging it out of the history window.
+    func encodedSelection() async throws -> EncodedCapture {
+        guard let capture = selectedCapture else { throw CancellationError() }
+        let data = try await store.pngData(for: capture.id)
+        try Task.checkCancellation()
+        return EncodedCapture(capture: capture, pngData: data)
+    }
+
+    func reportDragFailure(_ message: String) { errorMessage = message }
+
     private func loadSelection() {
         selectionSequence &+= 1
         let sequence = selectionSequence

@@ -200,6 +200,7 @@ private final class DragFeedback {
 struct DragExportHandle: NSViewRepresentable {
     var onClick: (@MainActor () -> Void)? = nil
     var isClickEnabled = true
+    var isSurface = false
     let prepare: @MainActor () async throws -> EncodedCapture
     let onAccepted: @MainActor () -> Void
     let onCancelled: @MainActor () -> Void
@@ -215,6 +216,7 @@ struct DragExportHandle: NSViewRepresentable {
     func updateNSView(_ view: DragExportCoordinator, context: Context) {
         view.onClick = onClick
         view.isClickEnabled = isClickEnabled
+        view.isSurface = isSurface
         view.prepare = prepare
         view.onAccepted = onAccepted
         view.onCancelled = onCancelled
@@ -235,6 +237,10 @@ final class DragExportCoordinator: NSView, NSDraggingSource {
     /// Gates only the click; dragging keeps its own preparation checks.
     var isClickEnabled = true {
         didSet { if oldValue != isClickEnabled { needsDisplay = true } }
+    }
+    /// An invisible drag area laid over an image preview instead of a toolbar button.
+    var isSurface = false {
+        didSet { if oldValue != isSurface { updateDescription(); needsDisplay = true } }
     }
     var prepare: (@MainActor () async throws -> EncodedCapture)?
     var onAccepted: (@MainActor () -> Void)?
@@ -268,7 +274,12 @@ final class DragExportCoordinator: NSView, NSDraggingSource {
     }
 
     private func updateDescription() {
-        if onClick != nil {
+        if isSurface {
+            toolTip = "拖动图片到 Finder、聊天窗口或上传区"
+            setAccessibilityRole(.image)
+            setAccessibilityLabel("可拖出的截图")
+            setAccessibilityHelp("按住并拖动，把这张截图拖到其他应用。")
+        } else if onClick != nil {
             toolTip = "单击保存为 PNG 文件（⌘S）；按住拖动可直接拖到 Finder、聊天窗口或上传区"
             setAccessibilityLabel("保存或拖出图像")
             setAccessibilityHelp("按下保存为 PNG 文件。也可以按住并拖动，把最终图像拖到其他应用。")
@@ -298,9 +309,12 @@ final class DragExportCoordinator: NSView, NSDraggingSource {
     override func mouseExited(with event: NSEvent) { isHovered = false; needsDisplay = true }
 
     required init?(coder: NSCoder) { nil }
-    override var intrinsicContentSize: NSSize { NSSize(width: 28, height: 28) }
+    override var intrinsicContentSize: NSSize {
+        isSurface ? NSSize(width: NSView.noIntrinsicMetric, height: NSView.noIntrinsicMetric) : NSSize(width: 28, height: 28)
+    }
 
     override func draw(_ dirtyRect: NSRect) {
+        guard !isSurface else { return }
         // Same feedback as InlineToolbarButtonStyle: hover and press tints only. A drag-only
         // handle keeps a resting tint, since nothing else marks it as interactive.
         let enabled = onClick == nil || isClickEnabled

@@ -63,6 +63,13 @@ struct HistoryView: View {
                         .resizable()
                         .interpolation(.high)
                         .scaledToFit()
+                        .overlay {
+                            DragExportHandle(isSurface: true,
+                                             prepare: { try await model.encodedSelection() },
+                                             onAccepted: {}, onCancelled: {},
+                                             onFailure: { _, message in model.reportDragFailure("拖出文件写入失败：" + message) },
+                                             onPreparationFailure: { model.reportDragFailure($0) })
+                        }
                         .padding(20)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .accessibilityLabel("选中的最终截图，\(capture.image.width) 乘 \(capture.image.height) 像素")
@@ -70,7 +77,7 @@ struct HistoryView: View {
                     ProgressView("正在读取图片…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    ContentUnavailableView("选择一张截图", systemImage: "photo", description: Text("历史保存最终图片，不保留原图或可编辑图层。"))
+                    ContentUnavailableView("选择一张截图", systemImage: "photo", description: Text("选中后可直接把图片拖到聊天窗口或 Finder。历史保存最终图片，不保留原图或可编辑图层。"))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 if let selected = model.summaries.first(where: { $0.id == model.selection }) {
