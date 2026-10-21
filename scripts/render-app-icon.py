@@ -2,8 +2,9 @@
 # Render the Sniplet app icon from vector source; this script is the icon's source of truth.
 # Concept: a selection frame (four corner brackets) with a brand-green piece lifted out of it.
 # Requires rsvg-convert (brew install librsvg).
-# Usage: scripts/render-app-icon.py            writes AppIcon.appiconset and website/public/icon.png
-#        (the website copy is cropped to the tile, without the macOS grid margin or shadow)
+# Usage: scripts/render-app-icon.py            writes AppIcon.appiconset, MenuBarIcon.imageset and
+#        website/public/icon.png (the website copy is cropped to the tile, without the macOS grid
+#        margin or shadow; the menu bar copy is the same glyph as a one-color template)
 #        scripts/render-app-icon.py --svg DIR  also keeps the generated SVG masters in DIR
 import math
 import pathlib
@@ -13,6 +14,7 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ICONSET = ROOT / "Sniplet/Resources/Assets.xcassets/AppIcon.appiconset"
+MENU_BAR = ROOT / "Sniplet/Resources/Assets.xcassets/MenuBarIcon.imageset"
 WEBSITE_ICON = ROOT / "website/public/icon.png"
 
 INK = "#1B2B25"
@@ -83,6 +85,20 @@ def icon(small=False, web=False):
 '''
 
 
+def menu_bar_icon():
+    """The icon's glyph in one color for the menu bar template image: the card is solid and a
+    clear gap separates it from the brackets it covers, standing in for the color icon's shadow."""
+    gap, width, arm = 44, 62, 172
+    lifted = f'<rect x="{362 - gap}" y="{242 - gap}" width="{420 + 2 * gap}" height="{420 + 2 * gap}" rx="{76 + gap}"/>'
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="206 206 612 612">
+<defs><mask id="gap"><rect x="0" y="0" width="1024" height="1024" fill="#FFFFFF"/>
+<g fill="#000000">{lifted}</g></mask></defs>
+<g mask="url(#gap)">{brackets(242, 302, 722, 782, arm, width)}</g>
+<rect x="362" y="242" width="420" height="420" rx="76" fill="{INK}"/>
+</svg>
+'''
+
+
 def render(svg_path, size, out):
     subprocess.run(["rsvg-convert", "-w", str(size), "-h", str(size), str(svg_path), "-o", str(out)], check=True)
 
@@ -100,7 +116,11 @@ def main():
         for size in (16, 32, 64, 128, 256, 512, 1024):
             render(small if size <= 32 else regular, size, ICONSET / f"icon-{size}.png")
         render(web, 512, WEBSITE_ICON)
-    print(f"Wrote {ICONSET.relative_to(ROOT)} and {WEBSITE_ICON.relative_to(ROOT)}")
+        menu = masters / "MenuBarIcon.svg"
+        menu.write_text(menu_bar_icon())
+        for scale in (1, 2):
+            render(menu, 18 * scale, MENU_BAR / f"menubar-{scale}x.png")
+    print(f"Wrote {ICONSET.relative_to(ROOT)}, {MENU_BAR.relative_to(ROOT)} and {WEBSITE_ICON.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

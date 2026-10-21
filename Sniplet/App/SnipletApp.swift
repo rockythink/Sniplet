@@ -9,7 +9,7 @@ struct SnipletApp: App {
         MenuBarExtra(isInserted: .constant(!AppRuntime.isUnitTesting)) {
             SnipletMenu(coordinator: delegate.coordinator)
         } label: {
-            Label("Sniplet", systemImage: "crop")
+            Label("Sniplet", image: "MenuBarIcon")
                 .accessibilityLabel("Sniplet 截图")
         }
         .menuBarExtraStyle(.menu)
