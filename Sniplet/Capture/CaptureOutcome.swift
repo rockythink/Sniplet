@@ -192,6 +192,8 @@ import AppKit
     /// Window hover uses a CleanShot-like strong accent treatment, distinct from region dashes.
     var isHoverHighlight = false { didSet { needsDisplay = true } }
     var instruction = "拖动选择区域 · 单击截取窗口 · Esc 取消" { didSet { needsDisplay = true } }
+    /// Pixel size drawn beside the dragged region, like the editor's selection badge.
+    var selectionLabel: String? { didSet { if selectionLabel != oldValue { needsDisplay = true } } }
     private(set) var isLocked = false
     var hasEditorContent = false { didSet { needsDisplay = true } }
     var onDown: ((CGPoint) -> Void)?
@@ -214,6 +216,7 @@ import AppKit
         isLocked = true
         isHoverHighlight = false
         instruction = ""
+        selectionLabel = nil
         onDown = nil; onDrag = nil; onUp = nil; onMove = nil
         window?.invalidateCursorRects(for: self)
     }
@@ -285,6 +288,7 @@ import AppKit
                 border.lineWidth = 1
                 border.stroke()
             }
+            if let selectionLabel { drawSelectionLabel(selectionLabel, beside: selection) }
         }
         guard !instruction.isEmpty else { return }
         let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .medium), .foregroundColor: NSColor.white]
@@ -294,6 +298,21 @@ import AppKit
         NSColor.black.withAlphaComponent(0.85).setFill()
         NSBezierPath(roundedRect: box, xRadius: 6, yRadius: 6).fill()
         text.draw(in: box.insetBy(dx: 10, dy: 7), withAttributes: attributes)
+    }
+
+    /// Above the top-left corner, or just inside it when the region touches the screen top.
+    private func drawSelectionLabel(_ label: String, beside selection: CGRect) {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor.white]
+        let text = label as NSString
+        let width = text.size(withAttributes: attributes).width + 12
+        let above = selection.maxY + 4
+        let y = above + 20 <= bounds.maxY ? above : max(bounds.minY, selection.maxY - 24)
+        let box = CGRect(x: min(max(bounds.minX + 4, selection.minX), bounds.maxX - width - 4), y: y,
+                         width: width, height: 20)
+        NSColor.black.withAlphaComponent(0.8).setFill()
+        NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4).fill()
+        text.draw(at: CGPoint(x: box.minX + 6, y: box.minY + 3), withAttributes: attributes)
     }
 }
 

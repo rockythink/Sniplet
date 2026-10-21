@@ -10,7 +10,11 @@ actor CaptureService {
     /// avoided: it can take longer than the screenshot itself on a busy window server.
     func prepare(requiredWindowIDs: Set<CGWindowID>) async throws -> Set<CGWindowID> {
         guard CGPreflightScreenCaptureAccess() else { throw CaptureError.permissionUnavailable }
-        for attempt in 0..<2 {
+        // Freshly ordered-front overlay windows can take a few frames to reach the shareable
+        // list, especially with several displays or a busy window server. A single yield was
+        // not enough and surfaced as an intermittent "cannot exclude Sniplet" failure.
+        let attempts = 6
+        for attempt in 0..<attempts {
             try Task.checkCancellation()
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             let listed = Set(content.windows.map(\.windowID))
@@ -18,7 +22,7 @@ actor CaptureService {
                 self.content = content
                 return listed
             }
-            if attempt == 0 { await Task.yield() }
+            if attempt < attempts - 1 { try await Task.sleep(for: .milliseconds(40)) }
         }
         content = nil
         throw CaptureError.applicationUnavailable

@@ -164,8 +164,11 @@ nonisolated struct CaptureSelectionGesture {
         if let capture = snapshots[id],
            let pixels = DisplayGeometry.pixelRect(for: selection, screenFrame: screen.frame,
                                                   imageWidth: capture.image.width, imageHeight: capture.image.height) {
-            view.instruction = "\(Int(pixels.width)) × \(Int(pixels.height)) 像素 · 不跨屏拼接 · Esc 取消"
+            // The size follows the selection; the screen-level hint keeps only the rules.
+            view.selectionLabel = "\(Int(pixels.width)) × \(Int(pixels.height))"
+            view.instruction = "松开完成 · 不跨屏拼接 · Esc 取消"
         } else {
+            view.selectionLabel = nil
             view.instruction = "正在冻结画面…"
         }
     }
@@ -206,10 +209,16 @@ nonisolated struct CaptureSelectionGesture {
         let highlight = hovered.map {
             DisplayGeometry.appKitRect($0.bounds, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
         }
+        // Same size badge as region dragging, on the pointer's display at its capture scale.
+        let scale = snapshots[screen.id].map { CGFloat($0.image.width) / screen.frame.width }
+        let label = highlight.flatMap { window in
+            scale.map { "\(Int((window.width * $0).rounded())) × \(Int((window.height * $0).rounded()))" }
+        }
         for item in screens {
             let rect = highlight.flatMap { DisplayGeometry.overlayRect(for: $0, in: item.frame) }
             let view = hosts[item.id]?.rootView
             view?.selection = rect
+            view?.selectionLabel = item.id == screen.id ? label : nil
             view?.isHoverHighlight = rect != nil
         }
     }
@@ -252,6 +261,7 @@ nonisolated struct CaptureSelectionGesture {
         for screen in screens {
             let preparing = snapshots[screen.id] == nil && !candidatesReady
             hosts[screen.id]?.rootView?.instruction = preparing ? "正在准备截图…" : ready
+            hosts[screen.id]?.rootView?.selectionLabel = nil
         }
     }
 }
