@@ -2,7 +2,13 @@ import CoreGraphics
 import Foundation
 
 nonisolated enum CaptureMode: String, Sendable {
-    case region, window, fullScreen
+    /// `previousRegion` is a request only: it captures the remembered region and yields `.region` images.
+    case region, window, fullScreen, previousRegion
+}
+
+/// The last region selection in global AppKit points, kept so it can be captured again directly.
+nonisolated struct CaptureRegionMemory: Codable, Equatable, Sendable {
+    var rect: CGRect
 }
 
 nonisolated struct CapturedImage: Sendable {

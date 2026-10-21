@@ -48,6 +48,7 @@
 		7ED9A9162050C1AB4B9FABA3 /* PinnedImageLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0186A5E548649F22BAB251FA /* PinnedImageLayoutTests.swift */; };
 		80727B85AA4DB76EC540296B /* EditorSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD316B7F0EBEDCE5A9BDAE82 /* EditorSession.swift */; };
 		8238357F5AFBC94D0C45EFBC /* PinnedImageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33AEB98F07F31B05554315C1 /* PinnedImageController.swift */; };
+		86007A9F443462895DE51C36 /* CaptureRegionMemoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9BA874B3AC5AB745D8DD77 /* CaptureRegionMemoryTests.swift */; };
 		86DCB0A4D4F5617A9EA1B7AE /* SessionTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41B147C5B5008663ECCB88C2 /* SessionTestSupport.swift */; };
 		8AD9A82A4F78AE90E8590568 /* HistoryIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F23FE4597088F1CC538A918 /* HistoryIndexer.swift */; };
 		8CF4DCF0FACC0AA84B1A0738 /* SnipletApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F03A4D29BBA0375E771431F /* SnipletApp.swift */; };
@@ -175,6 +176,7 @@
 		B818CBE134C72FEFD9B1AB04 /* AppRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRuntime.swift; sourceTree = "<group>"; };
 		BB5A833EE5044EF8C87D738A /* HistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWindowController.swift; sourceTree = "<group>"; };
 		BD588B1F46620013BEAB8CA8 /* AnnotationToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationToolbar.swift; sourceTree = "<group>"; };
+		BD9BA874B3AC5AB745D8DD77 /* CaptureRegionMemoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureRegionMemoryTests.swift; sourceTree = "<group>"; };
 		C2EDF65EF8950F70F3E3EDC3 /* AnnotationCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCounterTests.swift; sourceTree = "<group>"; };
 		C2FCB4FC778CB075CB85F1BE /* CaptureSelectionDragView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSelectionDragView.swift; sourceTree = "<group>"; };
 		C7F5A487568063487B1981A1 /* AnnotationCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCanvasView.swift; sourceTree = "<group>"; };
@@ -353,6 +355,7 @@
 				EB36ED77B6348D9F1ADDD826 /* AnnotationTextFormatTests.swift */,
 				E53BC91AE4D57D6E4C22C50B /* AnnotationToolResetTests.swift */,
 				9DE257663797EED746CB8BCA /* AppPreferencesTests.swift */,
+				BD9BA874B3AC5AB745D8DD77 /* CaptureRegionMemoryTests.swift */,
 				532586993B1579210459A110 /* CaptureSelectionMoveTests.swift */,
 				E88F55204A1BF3A7D858063F /* CaptureSelectionResizeGeometryTests.swift */,
 				FA693D2CD038253AFA960F46 /* CaptureSelectionResizeTests.swift */,
@@ -521,6 +524,7 @@
 				76245657624D41CF1AF0FC39 /* AnnotationTextFormatTests.swift in Sources */,
 				720E29E76ECA8245B666E037 /* AnnotationToolResetTests.swift in Sources */,
 				59E05330C9D09538446D54AA /* AppPreferencesTests.swift in Sources */,
+				86007A9F443462895DE51C36 /* CaptureRegionMemoryTests.swift in Sources */,
 				712070E899A2AAB0DD6BE5F4 /* CaptureSelectionMoveTests.swift in Sources */,
 				67756D94FBED0FB8AB8B40A6 /* CaptureSelectionResizeGeometryTests.swift in Sources */,
 				6B8139941C0C51EC2FF45547 /* CaptureSelectionResizeTests.swift in Sources */,

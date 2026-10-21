@@ -14,6 +14,8 @@ nonisolated struct ShortcutBinding: Codable, Equatable, Hashable, Sendable {
             ShortcutBinding(keyCode: 23, modifiers: UInt32(controlKey | optionKey | cmdKey))
         case .fullScreen:
             ShortcutBinding(keyCode: 20, modifiers: UInt32(controlKey | optionKey | cmdKey))
+        case .previousRegion:
+            ShortcutBinding(keyCode: 21, modifiers: UInt32(controlKey | optionKey | cmdKey))
         }
     }
 

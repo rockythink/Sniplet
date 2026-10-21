@@ -10,6 +10,8 @@ import SwiftUI
     let session: EditorSession
     private let preferences: AppPreferences
     var onClose: (() -> Void)?
+    /// The adjusted selection's global AppKit rect, after each move or resize.
+    var onRegionChange: ((CGRect) -> Void)?
     var window: NSWindow? { host.panel }
     private let host: InlineCaptureHost
     private var sourceRect: CGRect
@@ -130,6 +132,7 @@ import SwiftUI
                     guard let self, !self.isClosing, let scroll = self.scrollView,
                           let root = self.host.rootView else { return }
                     self.selectionMoveError = nil
+                    self.onRegionChange?(region.screenRect)
                     let previousSource = self.sourceRect
                     let previousDisplayed = scroll.canvas.convert(
                         CGRect(origin: .zero, size: self.sourceImageSize), to: root)
@@ -336,6 +339,7 @@ import SwiftUI
         sideBar = nil
         chrome = nil
         host.close()
+        onRegionChange = nil
         let completion = onClose
         onClose = nil
         completion?()

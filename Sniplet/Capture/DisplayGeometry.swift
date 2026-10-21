@@ -10,10 +10,13 @@ nonisolated enum DisplayGeometry {
         guard !clipped.isNull, clipped.width > 0, clipped.height > 0 else { return nil }
         let sx = CGFloat(imageWidth) / screenFrame.width
         let sy = CGFloat(imageHeight) / screenFrame.height
-        let x0 = floor((clipped.minX - screenFrame.minX) * sx)
-        let y0 = floor((screenFrame.maxY - clipped.maxY) * sy)
-        let x1 = ceil((clipped.maxX - screenFrame.minX) * sx)
-        let y1 = ceil((screenFrame.maxY - clipped.minY) * sy)
+        // Round outward, but not across float noise: a rect converted back from whole pixels
+        // (such as a remembered selection at 1.5x) must land on the same pixels.
+        let tolerance: CGFloat = 0.001
+        let x0 = floor((clipped.minX - screenFrame.minX) * sx + tolerance)
+        let y0 = floor((screenFrame.maxY - clipped.maxY) * sy + tolerance)
+        let x1 = ceil((clipped.maxX - screenFrame.minX) * sx - tolerance)
+        let y1 = ceil((screenFrame.maxY - clipped.minY) * sy - tolerance)
         let result = CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
             .intersection(CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight))
         return result.isEmpty || result.isNull ? nil : result

@@ -43,9 +43,11 @@ final class AppCoordinator {
         let id = UUID()
         let mode: CaptureMode
         let displayID: CGDirectDisplayID
+        var regionRect: CGRect?
     }
 
     var canCapture: Bool { !isCapturing && editor?.session.isBusy != true && !quitting }
+    var hasPreviousRegion: Bool { preferences.lastCaptureRegion != nil }
 
     func start() {
         guard !started, !AppRuntime.isUnitTesting else { return }
@@ -68,14 +70,25 @@ final class AppCoordinator {
 
     func requestCapture(_ mode: CaptureMode) {
         guard canCapture else { return }
+        // A remembered region on a display that is gone or rearranged falls back to a fresh selection.
+        if mode == .previousRegion, let rect = preferences.lastCaptureRegion?.rect,
+           let screen = NSScreen.screens.first(where: { $0.frame.insetBy(dx: -1, dy: -1).contains(rect) }),
+           let displayID = Self.displayID(for: screen) {
+            begin(CaptureRequest(mode: mode, displayID: displayID, regionRect: rect))
+            return
+        }
         let mouse = NSEvent.mouseLocation
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }),
               let displayID = Self.displayID(for: screen) else {
             showError(CaptureError.displayUnavailable.localizedDescription)
             return
         }
+        begin(CaptureRequest(mode: mode == .previousRegion ? .region : mode, displayID: displayID))
+    }
+
+    private func begin(_ request: CaptureRequest) {
         previousApplication = NSWorkspace.shared.frontmostApplication
-        pendingCapture = CaptureRequest(mode: mode, displayID: displayID)
+        pendingCapture = request
         isCapturing = true
         // Do not depend on duplicate begin notifications balancing a counter.
         // Explicitly finish tracked native menus, then sample in the next turn.
@@ -135,7 +148,8 @@ final class AppCoordinator {
             guard let self else { return }
             do {
                 guard let outcome = try await self.captureWorkflow.capture(mode: request.mode,
-                    displayID: request.displayID, selectionAppearance: self.preferences.selectionAppearance) else {
+                    displayID: request.displayID, regionRect: request.regionRect,
+                    selectionAppearance: self.preferences.selectionAppearance) else {
                     self.endCapture(request.id)
                     return
                 }
@@ -152,6 +166,12 @@ final class AppCoordinator {
                                            regionSelection: outcome.regionSelection, services: self.editorServices),
                              on: screen, sourceRect: outcome.screenRect, host: outcome.host)
                 adopted = true
+                if capture.mode == .region, let region = outcome.regionSelection {
+                    self.preferences.lastCaptureRegion = CaptureRegionMemory(rect: region.screenRect)
+                    self.editor?.onRegionChange = { [weak self] rect in
+                        self?.preferences.lastCaptureRegion = CaptureRegionMemory(rect: rect)
+                    }
+                }
             } catch {
                 guard self.requestID == request.id else { return }
                 self.endCapture(request.id)

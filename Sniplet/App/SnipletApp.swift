@@ -26,11 +26,11 @@ private struct SnipletMenu: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
-        ForEach([CaptureMode.region, .window, .fullScreen], id: \.self) { mode in
+        ForEach(GlobalHotKeyManager.modes, id: \.self) { mode in
             Button("\(title(mode))    \(coordinator.shortcuts.description(for: mode))") {
                 coordinator.requestCapture(mode)
             }
-            .disabled(!coordinator.canCapture)
+            .disabled(!coordinator.canCapture || mode == .previousRegion && !coordinator.hasPreviousRegion)
         }
         Divider()
         Button("截图历史…", action: coordinator.showHistory)
@@ -52,6 +52,7 @@ private struct SnipletMenu: View {
         case .region: "截取区域"
         case .window: "截取窗口"
         case .fullScreen: "截取当前屏幕"
+        case .previousRegion: "重复上次区域"
         }
     }
 }

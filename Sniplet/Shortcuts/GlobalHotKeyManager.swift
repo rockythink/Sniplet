@@ -13,7 +13,7 @@ import Observation
     @ObservationIgnored private var handler: EventHandlerRef?
     @ObservationIgnored private var nextID: UInt32 = 1
     private static let signature: OSType = 0x534E4950 // SNIP
-    static let modes: [CaptureMode] = [.region, .window, .fullScreen]
+    static let modes: [CaptureMode] = [.region, .window, .fullScreen, .previousRegion]
 
     init(onTrigger: @escaping (CaptureMode) -> Void) {
         self.onTrigger = onTrigger

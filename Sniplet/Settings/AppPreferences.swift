@@ -32,6 +32,14 @@ final class AppPreferences {
         }
     }
 
+    var lastCaptureRegion: CaptureRegionMemory? {
+        didSet {
+            if let data = try? JSONEncoder().encode(lastCaptureRegion) {
+                defaults.set(data, forKey: "capture.lastRegion")
+            }
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         historyEnabled = defaults.object(forKey: "history.enabled") as? Bool ?? true
@@ -41,6 +49,8 @@ final class AppPreferences {
             .flatMap { try? JSONDecoder().decode(CaptureStyle.self, from: $0) }?.normalized ?? .plain
         selectionAppearance = defaults.data(forKey: "capture.selectionAppearance")
             .flatMap { try? JSONDecoder().decode(CaptureSelectionAppearance.self, from: $0) }?.normalized ?? .standard
+        lastCaptureRegion = defaults.data(forKey: "capture.lastRegion")
+            .flatMap { try? JSONDecoder().decode(CaptureRegionMemory?.self, from: $0) } ?? nil
         ClipboardService.marksCopiesTransient = transientCopyEnabled
     }
 }

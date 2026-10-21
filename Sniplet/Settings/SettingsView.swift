@@ -73,6 +73,10 @@ struct SettingsView: View {
                 ShortcutRecorderView(manager: coordinator.shortcuts, mode: .fullScreen)
                 caption("截取鼠标所在的整块显示器。")
             }
+            Section("重复上次区域") {
+                ShortcutRecorderView(manager: coordinator.shortcuts, mode: .previousRegion)
+                caption("不用重新框选，直接截取上一次框选（含调整后）的同一块区域；还没有时改为普通区域截图。")
+            }
         }
         .formStyle(.grouped)
     }

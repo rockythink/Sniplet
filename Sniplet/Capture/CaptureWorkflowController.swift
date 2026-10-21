@@ -14,7 +14,8 @@ import AppKit
         super.init()
     }
 
-    func capture(mode: CaptureMode, displayID: CGDirectDisplayID,
+    /// `previousRegion` needs `regionRect`, the remembered selection in global AppKit points on `displayID`.
+    func capture(mode: CaptureMode, displayID: CGDirectDisplayID, regionRect: CGRect? = nil,
                  selectionAppearance: CaptureSelectionAppearance) async throws -> CaptureOutcome? {
         guard task == nil else { return nil }
         let id = UUID()
@@ -35,7 +36,7 @@ import AppKit
             } else if let screen = screens.first(where: { $0.id == displayID }) {
                 let feedback = InlineCaptureHost(screenFrame: screen.frame, displayID: screen.id,
                                                  selectionAppearance: selectionAppearance)
-                feedback.rootView?.instruction = "正在截取当前屏幕…"
+                feedback.rootView?.instruction = mode == .previousRegion ? "正在截取上次的区域…" : "正在截取当前屏幕…"
                 feedback.present()
                 host = feedback
             }
@@ -60,6 +61,17 @@ import AppKit
                 guard let region = CaptureRegionSelection(source: capture, screenFrame: screen.frame,
                                                            selectionRect: screen.frame) else { throw CaptureError.cropFailed }
                 regionSelection = region
+            case .previousRegion:
+                guard let regionRect, let screen = screens.first(where: { $0.id == displayID }),
+                      screen.frame.insetBy(dx: -1, dy: -1).contains(regionRect), let host else { throw CaptureError.displayUnavailable }
+                let snapshot = try await service.captureDisplay(displayID)
+                try Task.checkCancellation()
+                host.setSnapshot(snapshot.image)
+                guard let region = CaptureRegionSelection(source: snapshot, screenFrame: screen.frame,
+                                                           selectionRect: regionRect) else { throw CaptureError.cropFailed }
+                regionSelection = region
+                footprint = region.screenRect
+                capture = try region.croppedCapture()
             case .region, .window:
                 let primary = try await service.captureDisplay(displayID)
                 overlay.deliverSnapshot(primary)
