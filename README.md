@@ -8,15 +8,15 @@ Capture, annotate, beautify, then share — without leaving the selection. Built
 
 ## Download & install
 
-**v0.5.0 · build 11 · macOS 14+ · Universal (Apple Silicon + Intel)**
+**v0.6.0 · build 12 · macOS 14+ · Universal (Apple Silicon + Intel)**
 
-- [Download DMG](https://github.com/rockythink/Sniplet/releases/download/v0.5.0/Sniplet-0.5.0-universal.dmg)
-- [Download ZIP](https://github.com/rockythink/Sniplet/releases/download/v0.5.0/Sniplet-0.5.0-universal.zip)
-- [SHA-256 checksums](https://github.com/rockythink/Sniplet/releases/download/v0.5.0/SHA256SUMS)
+- [Download DMG](https://github.com/rockythink/Sniplet/releases/download/v0.6.0/Sniplet-0.6.0-universal.dmg)
+- [Download ZIP](https://github.com/rockythink/Sniplet/releases/download/v0.6.0/Sniplet-0.6.0-universal.zip)
+- [SHA-256 checksums](https://github.com/rockythink/Sniplet/releases/download/v0.6.0/SHA256SUMS)
 
-Official v0.5.0 downloads are Developer ID signed, securely timestamped, Apple-notarized and stapled. Both app and DMG passed Gatekeeper assessment as `Notarized Developer ID`. This does not certify every feature or hardware/system combination.
+Official v0.6.0 downloads are Developer ID signed, securely timestamped, Apple-notarized and stapled. Both app and DMG passed Gatekeeper assessment as `Notarized Developer ID`. This does not certify every feature or hardware/system combination.
 
-打开 DMG，把 **Sniplet.app** 拖进 **Applications / 应用程序**。启动后在菜单栏找裁剪图标；默认截图快捷键是 **Shift + Command + A（⇧⌘A）**。
+打开 DMG，把 **Sniplet.app** 拖进 **Applications / 应用程序**。启动后在菜单栏找 Sniplet 图标（选框里拿出一块方片）；默认截图快捷键是 **Shift + Command + A（⇧⌘A）**。
 
 macOS 将读取屏幕画面的权限称为“屏幕录制”或“录屏与系统音频录制”。首次截图时按应用引导，在系统设置中允许 `/Applications/Sniplet.app`。Sniplet 只抓取单帧，不录制视频、音频或鼠标指针。系统如要求重开，请手动退出再打开；不要重置所有应用的权限或移除安全隔离属性。
 
@@ -57,7 +57,7 @@ macOS 将读取屏幕画面的权限称为“屏幕录制”或“录屏与系�
 
 ## Build from source
 
-Toolchain used for v0.5.0: **Xcode 27.1 / Swift 6.4**, XcodeGen 2.46.0. Source uses Swift 6 complete concurrency checking and MainActor default isolation. Minimum deployment target is macOS 14.
+Toolchain used for v0.6.0: **Xcode 27.1 / Swift 6.4**, XcodeGen 2.46.0. Source uses Swift 6 complete concurrency checking and MainActor default isolation. Minimum deployment target is macOS 14.
 
 `project.yml` is the project configuration source; regenerate after configuration changes. The checked-in Xcode project is generated, not maintained separately.
 
@@ -123,10 +123,11 @@ The homepage's editable beautification sample is **explicitly labeled an illustr
 
 ## Verification status
 
-- v0.5.0: **170 tests passed / 258 parameterized runs**, 0 failures or skips, on Apple Silicon and macOS 27.0.1.
+- v0.6.0: **191 tests in 32 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage includes text fitting/formatting/background, counter numbering and rendering.
+- Earlier, v0.5.0: **170 tests passed / 258 parameterized runs**, 0 failures or skips, on Apple Silicon and macOS 27.0.1.
 - Actual synthetic PNG smoke covered resize, source-pixel alignment, fractional annotations, one-step undo/redo, move, clamp/cancel, style preservation and unchanged PNG bytes when changing selection hints. Unattached native scroll views reproduced the old recentering drift, then verified fixed opposite edges and pointer-matched resizing at 25% and 200% zoom. No visible window or real capture was used.
 - Earlier drag-path smoke covered private native file/image representations and background Objective-C file-promise callbacks.
-- Public v0.5.0 app ZIP and DMG notarization were both **Accepted**; stapled tickets and Gatekeeper acceptance were verified.
+- Public v0.6.0 app ZIP and DMG notarization were both **Accepted**; stapled tickets and Gatekeeper acceptance were verified.
 - **Not separately certified:** macOS 14 runtime, real Intel hardware, every chat/browser drop target, VoiceOver, IME edge cases, or real-device performance targets. A universal binary, passing unit tests and Apple notarization are not substitutes for these checks.
 - Native desktop interaction is manually tested by users; automated checks do not take over the desktop or trigger real captures.
 
