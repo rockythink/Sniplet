@@ -160,7 +160,8 @@ struct CaptureSelectionResizeGeometryTests {
         defer { scroll.canvas.detach() }
         scroll.frame = region.screenRect
         scroll.synchronizePresentation()
-        scroll.apply(.percent(percent))
+        // Internal fit is the only remaining source of a non-1 magnification.
+        scroll.magnification = CGFloat(percent) / 100
         let before = scroll.canvas.convert(editor.document.imageBounds, to: root)
         let mapping = try #require(CaptureSelectionResizeMapping(handle: .right, selection: before,
             sourceSize: region.screenRect.size, clippingRect: root.bounds, bounds: root.bounds,

@@ -1,9 +1,11 @@
 import SwiftUI
 
 /// A small synthetic sample, never a screenshot or an export-quality raster preview.
+/// A miniature app window on a tinted backdrop, so corner radius, shadow and both
+/// white and gray borders all read clearly.
 struct CaptureStylePreview: View {
     let style: CaptureStyle
-    private let sampleSize = CGSize(width: 176, height: 60)
+    private let sampleSize = CGSize(width: 184, height: 104)
 
     var body: some View {
         // Half-size point geometry keeps even the strongest shadow inside this small sample.
@@ -27,8 +29,8 @@ struct CaptureStylePreview: View {
             }
             .frame(width: sampleSize.width, height: sampleSize.height)
             .frame(maxWidth: .infinity)
-            .frame(height: 100)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+            .frame(height: 148)
+            .background(backdrop, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             Text("样式示意 · 非截图内容")
                 .font(.caption2)
@@ -38,22 +40,63 @@ struct CaptureStylePreview: View {
         .accessibilityLabel("截图美化样式示意，使用示例内容，不读取屏幕")
     }
 
+    /// Fixed colors: the sample stands for a light screenshot in either appearance.
+    private var backdrop: LinearGradient {
+        LinearGradient(colors: [Color(red: 0.80, green: 0.88, blue: 0.85), Color(red: 0.74, green: 0.80, blue: 0.90)],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    private static let ink = Color(red: 0.16, green: 0.20, blue: 0.19)
+    private static let line = Color(red: 0.84, green: 0.86, blue: 0.86)
+    private static let brand = Color(red: 0.09, green: 0.45, blue: 0.35)
+
     private var sample: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "photo")
-                .font(.system(size: 23))
-                .foregroundStyle(Color(red: 0.22, green: 0.38, blue: 0.55))
-                .frame(width: 44, height: 44)
-                .background(Color(red: 0.82, green: 0.89, blue: 0.95), in: RoundedRectangle(cornerRadius: 6))
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Sniplet").font(.system(size: 12, weight: .semibold))
-                Text("截图美化").font(.system(size: 10))
+        VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                ForEach([Color(red: 1, green: 0.37, blue: 0.34), Color(red: 1, green: 0.74, blue: 0.18),
+                         Color(red: 0.16, green: 0.79, blue: 0.25)], id: \.self) { color in
+                    Circle().fill(color).frame(width: 6, height: 6)
+                }
+                Spacer(minLength: 0)
             }
-            .foregroundStyle(Color(white: 0.22))
-            Spacer(minLength: 0)
+            .padding(.horizontal, 8)
+            .frame(height: 16)
+            .background(Color(white: 0.95))
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 6) {
+                    bar(Self.brand.opacity(0.85), width: 26)
+                    bar(Self.line, width: 30)
+                    bar(Self.line, width: 22)
+                    bar(Self.line, width: 28)
+                    Spacer(minLength: 0)
+                }
+                .padding(8)
+                .frame(width: 46, alignment: .leading)
+                .frame(maxHeight: .infinity)
+                .background(Color(white: 0.97))
+                VStack(alignment: .leading, spacing: 6) {
+                    bar(Self.ink, width: 64, height: 5)
+                    bar(Self.line, width: 104)
+                    bar(Self.line, width: 84)
+                    HStack(alignment: .bottom, spacing: 5) {
+                        ForEach(Array([14, 22, 18, 30, 26].enumerated()), id: \.offset) { index, height in
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(Self.brand.opacity(index == 3 ? 1 : 0.45))
+                                .frame(width: 9, height: CGFloat(height))
+                        }
+                    }
+                    .padding(.top, 2)
+                    Spacer(minLength: 0)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(.white)
+            }
         }
-        .padding(.horizontal, 12)
         .frame(width: sampleSize.width, height: sampleSize.height)
-        .background(Color(red: 0.94, green: 0.96, blue: 0.98))
+    }
+
+    private func bar(_ color: Color, width: CGFloat, height: CGFloat = 4) -> some View {
+        Capsule().fill(color).frame(width: width, height: height)
     }
 }

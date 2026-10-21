@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreText
 import Foundation
 
 nonisolated enum AnnotationHandle: Equatable, Sendable {
@@ -66,6 +67,18 @@ nonisolated enum AnnotationGeometry {
         }
     }
 
+    /// Drawing tools only grab a mark by its outline, so a drag inside a rectangle,
+    /// mosaic or highlight still starts a new mark. Pen strokes are never grabbed.
+    static func outlineHit(_ annotation: Annotation, at point: CGPoint, tolerance: CGFloat) -> Bool {
+        switch annotation.payload {
+        case .arrow: return hit(annotation, at: point, tolerance: tolerance)
+        case .pen: return false
+        case let .rectangle(rect), let .text(rect, _), let .mosaic(rect, _), let .highlight(rect):
+            return rect.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
+                && !rect.insetBy(dx: tolerance, dy: tolerance).contains(point)
+        }
+    }
+
     static func handles(_ annotation: Annotation) -> [(AnnotationHandle, CGPoint)] {
         switch annotation.payload {
         case let .arrow(a, b): return [(.start, a), (.end, b)]
@@ -115,6 +128,49 @@ nonisolated enum AnnotationGeometry {
         case .highlight: .highlight(rect: newRect)
         default: annotation.payload
         }
+        return result
+    }
+}
+
+/// One font and one measurement for the live text input, the canvas and the final render,
+/// so a text mark always shows exactly what was typed, without clipping or rewrapping.
+nonisolated enum AnnotationTextLayout {
+    /// Point sizes offered by the toolbar steppers; stored sizes are these times the source scale.
+    static let pointSizes: [CGFloat] = [12, 14, 16, 20, 24, 32, 40, 48, 64, 80]
+
+    static func font(_ style: AnnotationStyle) -> CTFont {
+        CTFontCreateUIFontForLanguage(style.isBold ? .emphasizedSystem : .system, style.fontSize, nil)
+            ?? CTFontCreateWithName((style.isBold ? "Helvetica-Bold" : "Helvetica") as CFString, style.fontSize, nil)
+    }
+
+    static func attributedString(_ text: String, style: AnnotationStyle) -> NSAttributedString {
+        NSAttributedString(string: text, attributes: [
+            NSAttributedString.Key(kCTFontAttributeName as String): font(style),
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): style.color.cgColor
+        ])
+    }
+
+    /// The smallest box at `origin` showing all of `text`; it wraps only at the image edge.
+    static func fittedRect(_ text: String, style: AnnotationStyle, origin: CGPoint, in bounds: CGRect) -> CGRect {
+        let maxWidth = max(style.fontSize, bounds.maxX - origin.x)
+        // An empty text or a trailing newline still needs room for the caret's line.
+        let measured = text.isEmpty || text.hasSuffix("\n") ? text + " " : text
+        let framesetter = CTFramesetterCreateWithAttributedString(attributedString(measured, style: style))
+        let size = CTFramesetterSuggestFrameSizeWithConstraints(
+            framesetter, CFRange(location: 0, length: 0), nil,
+            CGSize(width: maxWidth, height: .greatestFiniteMagnitude), nil)
+        // Slack keeps CoreText from dropping the last line or wrapping on rounding.
+        let slack = max(2, style.fontSize / 8)
+        return CGRect(x: origin.x, y: origin.y,
+                      width: min(maxWidth, max(style.fontSize, ceil(size.width) + slack)),
+                      height: ceil(size.height) + slack)
+    }
+
+    /// Text marks follow their content; other marks are returned unchanged.
+    static func refitted(_ annotation: Annotation, in bounds: CGRect) -> Annotation {
+        guard case let .text(rect, text) = annotation.payload else { return annotation }
+        var result = annotation
+        result.payload = .text(rect: fittedRect(text, style: annotation.style, origin: rect.origin, in: bounds), text: text)
         return result
     }
 }

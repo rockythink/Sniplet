@@ -196,7 +196,10 @@ private final class DragFeedback {
 
 /// A press only arms the handle. A real drag prepares the immutable final output,
 /// then starts at the current pointer while the physical mouse button is still held.
+/// A click without a drag runs `onClick` instead (the editor's save action).
 struct DragExportHandle: NSViewRepresentable {
+    var onClick: (@MainActor () -> Void)? = nil
+    var isClickEnabled = true
     let prepare: @MainActor () async throws -> EncodedCapture
     let onAccepted: @MainActor () -> Void
     let onCancelled: @MainActor () -> Void
@@ -210,6 +213,8 @@ struct DragExportHandle: NSViewRepresentable {
     }
 
     func updateNSView(_ view: DragExportCoordinator, context: Context) {
+        view.onClick = onClick
+        view.isClickEnabled = isClickEnabled
         view.prepare = prepare
         view.onAccepted = onAccepted
         view.onCancelled = onCancelled
@@ -224,6 +229,13 @@ struct DragExportHandle: NSViewRepresentable {
 
 @MainActor
 final class DragExportCoordinator: NSView, NSDraggingSource {
+    var onClick: (@MainActor () -> Void)? {
+        didSet { updateDescription() }
+    }
+    /// Gates only the click; dragging keeps its own preparation checks.
+    var isClickEnabled = true {
+        didSet { if oldValue != isClickEnabled { needsDisplay = true } }
+    }
     var prepare: (@MainActor () async throws -> EncodedCapture)?
     var onAccepted: (@MainActor () -> Void)?
     var onCancelled: (@MainActor () -> Void)?
@@ -239,37 +251,85 @@ final class DragExportCoordinator: NSView, NSDraggingSource {
     private var latestDragEvent: NSEvent?
     private var temporaryFileURL: URL?
     private var isDragging = false
+    private var isHovered = false
+    private var hoverTracking: NSTrackingArea?
     private static let dragIcon = NSImage(systemSymbolName: "arrow.up.forward", accessibilityDescription: nil)?
+        .withSymbolConfiguration(.init(pointSize: 16, weight: .medium))
+    private static let saveIcon = NSImage(systemSymbolName: "square.and.arrow.down", accessibilityDescription: nil)?
         .withSymbolConfiguration(.init(pointSize: 16, weight: .medium))
     private static let preparingIcon = NSImage(systemSymbolName: "hourglass", accessibilityDescription: nil)?
         .withSymbolConfiguration(.init(pointSize: 16, weight: .medium))
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        toolTip = "按住并拖动最终图像到 Finder、聊天窗口或图片上传区；单击不会输出。"
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
-        setAccessibilityLabel("拖出图像")
-        setAccessibilityHelp("按住并拖动，最终图像准备完成后自动拖出。单击不会输出或收起工具条。")
+        updateDescription()
     }
+
+    private func updateDescription() {
+        if onClick != nil {
+            toolTip = "单击保存为 PNG 文件（⌘S）；按住拖动可直接拖到 Finder、聊天窗口或上传区"
+            setAccessibilityLabel("保存或拖出图像")
+            setAccessibilityHelp("按下保存为 PNG 文件。也可以按住并拖动，把最终图像拖到其他应用。")
+        } else {
+            toolTip = "按住并拖动最终图像到 Finder、聊天窗口或图片上传区；单击不会输出。"
+            setAccessibilityLabel("拖出图像")
+            setAccessibilityHelp("按住并拖动，最终图像准备完成后自动拖出。单击不会输出或收起工具条。")
+        }
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard let onClick, isClickEnabled else { return false }
+        onClick()
+        return true
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        hoverTracking = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { isHovered = true; needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { isHovered = false; needsDisplay = true }
 
     required init?(coder: NSCoder) { nil }
     override var intrinsicContentSize: NSSize { NSSize(width: 28, height: 28) }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.controlBackgroundColor.setFill()
-        NSBezierPath(roundedRect: bounds, xRadius: 5, yRadius: 5).fill()
-        let icon = preparation != nil ? Self.preparingIcon : Self.dragIcon
-        icon?.draw(in: CGRect(x: bounds.midX-8, y: bounds.midY-8, width: 16, height: 16))
+        // Same feedback as InlineToolbarButtonStyle: hover and press tints only. A drag-only
+        // handle keeps a resting tint, since nothing else marks it as interactive.
+        let enabled = onClick == nil || isClickEnabled
+        let fill: CGFloat = gestureID != nil ? 0.20 : isHovered && enabled ? 0.08 : onClick == nil ? 0.08 : 0
+        if fill > 0 {
+            NSColor.labelColor.withAlphaComponent(fill).setFill()
+            NSBezierPath(roundedRect: bounds, xRadius: 5, yRadius: 5).fill()
+        }
+        // Template symbols draw black unless tinted; labelColor resolves per appearance here.
+        let resting = onClick == nil ? Self.dragIcon : Self.saveIcon
+        let icon = (preparation != nil ? Self.preparingIcon : resting)?
+            .withSymbolConfiguration(.init(paletteColors: [.labelColor]))
+        icon?.draw(in: CGRect(x: bounds.midX-8, y: bounds.midY-8, width: 16, height: 16),
+                   from: .zero, operation: .sourceOver, fraction: enabled ? 1 : 0.4)
     }
 
-    override func resetCursorRects() { addCursorRect(bounds, cursor: .openHand) }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
+
+    override func resetCursorRects() { if onClick == nil { addCursorRect(bounds, cursor: .openHand) } }
 
     override func mouseDown(with event: NSEvent) {
         guard gestureID == nil, !isDragging, prepare != nil else { return }
         gestureID = UUID()
         initialLocation = convert(event.locationInWindow, from: nil)
         latestDragEvent = nil
+        needsDisplay = true
         // A click only arms the handle. Rendering and session locking begin after
         // the pointer crosses the normal drag threshold, never on mouse-down.
     }
@@ -351,7 +411,13 @@ final class DragExportCoordinator: NSView, NSDraggingSource {
         session.animatesToStartingPositionsOnCancelOrFail = true
     }
 
-    override func mouseUp(with event: NSEvent) { cancelPreparation() }
+    override func mouseUp(with event: NSEvent) {
+        // No drag threshold crossed: an ordinary click on a pointer still over the button.
+        let clicked = gestureID != nil && latestDragEvent == nil
+            && bounds.contains(convert(event.locationInWindow, from: nil))
+        cancelPreparation()
+        if clicked, isClickEnabled { onClick?() }
+    }
 
     func cancelPreparation() {
         guard !isDragging, gestureID != nil else { return }

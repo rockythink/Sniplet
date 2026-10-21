@@ -1,8 +1,6 @@
 import AppKit
 import CoreImage
 
-enum CanvasZoomCommand: Equatable { case fit, actual, percent(Int) }
-
 private final class CenteredCanvasClipView: NSClipView {
     var preservesDocumentPosition = false
 
@@ -41,14 +39,11 @@ final class AnnotationScrollView: NSScrollView {
 
     required init?(coder: NSCoder) { nil }
 
-    func apply(_ command: CanvasZoomCommand) {
-        canvas.editor.commitTextEditing()
+    /// Returns to automatic fitting, e.g. after the editor moved to another display.
+    func refit() {
         (contentView as? CenteredCanvasClipView)?.preservesDocumentPosition = false
-        switch command {
-        case .fit: fitsWindow = true; fitCanvas()
-        case .actual: fitsWindow = false; magnification = 1
-        case let .percent(value): fitsWindow = false; magnification = CGFloat(value)/100
-        }
+        fitsWindow = true
+        fitCanvas()
         canvas.needsDisplay = true
     }
 
@@ -100,12 +95,10 @@ final class AnnotationScrollView: NSScrollView {
     }
 
 
-    override func magnify(with event: NSEvent) {
-        fitsWindow = false
-        (contentView as? CenteredCanvasClipView)?.preservesDocumentPosition = false
-        canvas.editor.commitTextEditing()
-        super.magnify(with: event)
-    }
+    /// The inline editor stays 1:1 with the screen; user zoom only shrank or cropped the image
+    /// inside the fixed selection frame and detached it from the toolbars. Magnification is
+    /// still set internally, only to fit an oversized styled presentation.
+    override func magnify(with event: NSEvent) {}
 }
 
 /// AppKit supplies precise pointer/responder/IME behavior; all document mutations go through the editor.
@@ -164,6 +157,7 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
                                                                 sourceScale: editor.document.capture.sourceScale)
         super.init(frame: editor.document.imageBounds)
         editor.commitTextHandler = { [weak self] in self?.commitPendingInteraction() }
+        editor.textStyleHandler = { [weak self] style in self?.applyTextStyle(style) ?? false }
         editor.invalidateHandler = { [weak self] in self?.removeTextInput() }
         editor.changeHandler = { [weak self] rect in self?.documentChanged(rect) }
         setAccessibilityElement(true)
@@ -184,6 +178,7 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
     func detach() {
         finishTextEditing()
         editor.commitTextHandler = nil
+        editor.textStyleHandler = nil
         editor.changeHandler = nil
         editor.invalidateHandler = nil
         onConfirmScreenshot = nil
@@ -253,7 +248,10 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         do {
             if let previewPreparationError { throw previewPreparationError }
-            try AnnotationCompositor.drawPreview(editor.document, in: context, ciContext: ciContext,
+            // The live input shows the text being typed; drawing it twice would ghost.
+            var document = editor.document
+            if textView != nil, let id = textAnnotation?.id { document.annotations.removeAll { $0.id == id } }
+            try AnnotationCompositor.drawPreview(document, in: context, ciContext: ciContext,
                                                   geometry: previewGeometry, cornerMask: cornerMask,
                                                   shadow: preview.shadow)
             if lastRenderError != nil { setAccessibilityValue("") }
@@ -270,10 +268,20 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
             message.draw(in: visibleRect.insetBy(dx: 12, dy: 12))
             return
         }
-        guard let item = editor.selectedAnnotation, textView == nil else { return }
+        let unit = pixelTolerance/6
+        if let textView {
+            // Editing chrome only: a dashed outline, never a filled box that looks rendered.
+            context.saveGState()
+            context.setStrokeColor(NSColor.controlAccentColor.cgColor)
+            context.setLineWidth(unit)
+            context.setLineDash(phase: 0, lengths: [4*unit, 3*unit])
+            context.stroke(textView.frame.insetBy(dx: -3*unit, dy: -2*unit))
+            context.restoreGState()
+            return
+        }
+        guard let item = editor.selectedAnnotation else { return }
         context.saveGState()
         defer { context.restoreGState() }
-        let unit = pixelTolerance/6
         context.setStrokeColor(NSColor.controlAccentColor.cgColor)
         context.setLineWidth(unit)
         context.setLineDash(phase: 0, lengths: [4*unit, 3*unit])
@@ -362,13 +370,31 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
                 }
             }
         } else if editor.selectedTool == .text {
-            let scale = editor.document.capture.sourceScale
-            let bounds = editor.document.imageBounds
-            let rect = CGRect(x: point.x, y: point.y,
-                              width: max(1, min(240*scale, bounds.width-point.x)),
-                              height: max(1, min(100*scale, bounds.height-point.y)))
+            // The text tool stays active: clicking an existing text edits it in place.
+            if let hit = editor.hitTest(point, tolerance: pixelTolerance), hit.kind == .text {
+                startTextEditing(hit)
+                return
+            }
+            // The box starts at the click and grows with the text, like the final render.
+            let rect = AnnotationTextLayout.fittedRect("", style: editor.style, origin: point,
+                                                       in: editor.document.imageBounds)
             startTextEditing(Annotation(payload: .text(rect: rect, text: ""), style: editor.style))
         } else if let kind = editor.selectedTool.kind {
+            // Drawing tools stay active after each mark; the selected mark's handles and
+            // outline still adjust it, so it can be fixed without switching tools.
+            if let item = editor.selectedAnnotation {
+                if let handle = AnnotationGeometry.handles(item).first(where: { hypot($0.1.x-point.x, $0.1.y-point.y) <= pixelTolerance }) {
+                    original = item
+                    dragHandle = handle.0
+                    editor.beginTransaction(id: item.id, actionName: "调整标注")
+                    return
+                }
+                if AnnotationGeometry.outlineHit(item, at: point, tolerance: pixelTolerance) {
+                    original = item
+                    editor.beginTransaction(id: item.id)
+                    return
+                }
+            }
             let rect = CGRect(origin: point, size: .zero)
             let payload: AnnotationPayload = switch kind {
             case .arrow: .arrow(start: point, end: point)
@@ -452,7 +478,6 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
             editor.select(nil)
         } else {
             editor.endTransaction()
-            if creation != nil { editor.selectedTool = .select }
         }
         resetGesture()
     }
@@ -490,6 +515,8 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         if dragStart != nil {
             editor.cancelTransaction()
             resetGesture()
+        } else if editor.exitDrawingTool() {
+            restoreHoverCursor()
         } else {
             onCancelScreenshot?()
         }
@@ -501,6 +528,15 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         guard canEdit else { return }
         if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers?.lowercased() == "z" {
             if event.modifierFlags.contains(.shift) { editor.redo() } else { editor.undo() }
+            return
+        }
+        // The same format keys as the text input, for a selected text mark.
+        if event.modifierFlags.contains(.command), editor.selectedAnnotation?.kind == .text,
+           let format = AnnotationTextFormatKey(event) {
+            switch format {
+            case .bold: editor.toggleBold()
+            case let .size(larger): editor.stepFontSize(larger: larger)
+            }
             return
         }
         let step: CGFloat = event.modifierFlags.contains(.shift) ? 10 : 1
@@ -522,7 +558,14 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
             else { editor.select(items[next].id) }
         case 36, 76:
             onConfirmScreenshot?()
-        default: super.keyDown(with: event)
+        default:
+            if event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
+               let key = event.charactersIgnoringModifiers, let tool = AnnotationTool.forShortcut(key) {
+                editor.selectedTool = tool
+                restoreHoverCursor()
+            } else {
+                super.keyDown(with: event)
+            }
         }
     }
 
@@ -533,10 +576,7 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         editor.beginTransaction(id: annotation.id, actionName: string.isEmpty ? "创建文字" : "编辑文字")
         let input = AnnotationTextInputView(frame: rect)
         input.string = string
-        input.font = NSFont.systemFont(ofSize: annotation.style.fontSize)
-        input.textColor = NSColor(cgColor: annotation.style.color.cgColor)
-        input.backgroundColor = .textBackgroundColor
-        input.drawsBackground = true
+        input.drawsBackground = false
         input.isRichText = false
         input.importsGraphics = false
         input.allowsUndo = true
@@ -544,23 +584,57 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         input.textContainer?.lineFragmentPadding = 0
         input.isHorizontallyResizable = false
         input.isVerticallyResizable = false
-        input.textContainer?.containerSize = rect.size
         input.textContainer?.widthTracksTextView = true
         input.delegate = self
         input.onCommit = { [weak self] in self?.finishTextEditing() }
         input.onCancel = { [weak self] in self?.cancelTextEditing() }
-        input.setAccessibilityLabel("标注文字，多行输入，Command Return 提交")
+        input.onBold = { [weak self] in self?.editor.toggleBold() }
+        input.onFontSizeStep = { [weak self] larger in self?.editor.stepFontSize(larger: larger) }
+        input.setAccessibilityLabel("标注文字，多行输入，Command Return 提交，Command B 加粗，Command 加减号调整字号")
         textView = input
+        applyInputStyle(annotation.style, to: input)
+        // Older or hand-resized boxes adopt the fitted size; the document follows on the first edit.
+        input.frame = AnnotationTextLayout.fittedRect(string, style: annotation.style, origin: rect.origin,
+                                                      in: editor.document.imageBounds)
+        input.textContainer?.containerSize = CGSize(width: input.frame.width, height: .greatestFiniteMagnitude)
         addSubview(input)
+        editor.isEditingText = true
         window?.makeFirstResponder(input)
         input.selectAll(nil)
         needsDisplay = true
     }
 
+    private func applyInputStyle(_ style: AnnotationStyle, to input: AnnotationTextInputView) {
+        let color = NSColor(cgColor: style.color.cgColor) ?? .labelColor
+        input.font = AnnotationTextLayout.font(style) as NSFont
+        input.textColor = color
+        input.insertionPointColor = color
+        input.typingAttributes = [.font: input.font as Any, .foregroundColor: color]
+    }
+
+    /// Size, weight and color changes reach the open input without closing it.
+    private func applyTextStyle(_ style: AnnotationStyle) -> Bool {
+        guard let input = textView, var annotation = textAnnotation else { return false }
+        annotation.style = style
+        textAnnotation = annotation
+        applyInputStyle(style, to: input)
+        textDidChange(Notification(name: NSText.didChangeNotification))
+        window?.makeFirstResponder(input)
+        return true
+    }
+
     func textDidChange(_ notification: Notification) {
         guard let input = textView, var annotation = textAnnotation,
               case let .text(rect, _) = annotation.payload else { return }
-        annotation.payload = .text(rect: rect, text: input.string)
+        let fitted = AnnotationTextLayout.fittedRect(input.string, style: annotation.style, origin: rect.origin,
+                                                     in: editor.document.imageBounds)
+        annotation.payload = .text(rect: fitted, text: input.string)
+        textAnnotation = annotation
+        if input.frame != fitted {
+            setNeedsDisplay(input.frame.union(fitted).insetBy(dx: -pixelTolerance, dy: -pixelTolerance))
+            input.frame = fitted
+            input.textContainer?.containerSize = CGSize(width: fitted.width, height: .greatestFiniteMagnitude)
+        }
         // Invalidates in-flight OCR even before the native text field is committed.
         editor.updateTransaction(annotation)
     }
@@ -584,7 +658,6 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
             if existing { editor.deleteSelected() }
         } else {
             editor.endTransaction()
-            editor.selectedTool = .select
         }
         removeTextInput()
     }
@@ -599,9 +672,12 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         textView?.delegate = nil
         textView?.onCommit = nil
         textView?.onCancel = nil
+        textView?.onBold = nil
+        textView?.onFontSizeStep = nil
         textView?.removeFromSuperview()
         textView = nil
         textAnnotation = nil
+        if editor.isEditingText { editor.isEditingText = false }
         window?.makeFirstResponder(self)
         needsDisplay = true
     }
@@ -627,14 +703,36 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
     }
 }
 
+/// ⌘B toggles bold; ⌘= / ⌘+ and ⌘- step the font size.
+private enum AnnotationTextFormatKey {
+    case bold, size(larger: Bool)
+
+    init?(_ event: NSEvent) {
+        switch event.charactersIgnoringModifiers?.lowercased() {
+        case "b": self = .bold
+        case "=", "+": self = .size(larger: true)
+        case "-": self = .size(larger: false)
+        default: return nil
+        }
+    }
+}
+
 private final class AnnotationTextInputView: LocalCopyTextView {
     private let nativeTextUndoManager = UndoManager()
     override var undoManager: UndoManager? { nativeTextUndoManager }
     var onCommit: (() -> Void)?
     var onCancel: (() -> Void)?
+    var onBold: (() -> Void)?
+    var onFontSizeStep: ((Bool) -> Void)?
     override func keyDown(with event: NSEvent) {
-        if !hasMarkedText(), event.modifierFlags.contains(.command), [36, 76].contains(event.keyCode) {
+        let command = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.shift) == .command
+        if !hasMarkedText(), command, [36, 76].contains(event.keyCode) {
             onCommit?()
+        } else if !hasMarkedText(), command, let format = AnnotationTextFormatKey(event) {
+            switch format {
+            case .bold: onBold?()
+            case let .size(larger): onFontSizeStep?(larger)
+            }
         } else { super.keyDown(with: event) }
     }
     override func cancelOperation(_ sender: Any?) {

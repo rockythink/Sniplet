@@ -10,7 +10,11 @@ import Observation
     var mosaicBlockSize: CGFloat = 16
     var isInteractionEnabled = true
     private(set) var isValid = true
+    /// True while the canvas's text input is open; the toolbar shows text format controls.
+    var isEditingText = false
     @ObservationIgnored var commitTextHandler: (() -> Void)?
+    /// Applies a style to the text being typed; returns false when no text input is open.
+    @ObservationIgnored var textStyleHandler: ((AnnotationStyle) -> Bool)?
     @ObservationIgnored var invalidateHandler: (() -> Void)?
     @ObservationIgnored var changeHandler: ((CGRect) -> Void)?
     @ObservationIgnored var revisionHandler: ((UInt64) -> Void)?
@@ -90,6 +94,8 @@ import Observation
         regionSelection = nil
         undoManager.removeAllActions()
         commitTextHandler = nil
+        textStyleHandler = nil
+        isEditingText = false
         changeHandler = nil
         revisionHandler = nil
         captureStyleHandler = nil
@@ -137,12 +143,46 @@ import Observation
         replace(AnnotationGeometry.translated(item, by: delta), actionName: "移动标注")
     }
 
+    /// Text size and weight sit in the toolbar while text is being placed, typed or selected.
+    var showsTextFormat: Bool {
+        selectedTool == .text || isEditingText || selectedAnnotation?.kind == .text
+    }
+
+    /// The style the toolbar edits: the selected mark's, otherwise the next mark's.
+    /// Highlight and mosaic marks keep fixed styles, so they never report one.
+    var activeStyle: AnnotationStyle {
+        if let item = selectedAnnotation, item.kind != .highlight, item.kind != .mosaic { return item.style }
+        return style
+    }
+
+    /// Text being typed takes the change live and stays open; a selected mark records one undo step.
     func setStyle(_ newStyle: AnnotationStyle) {
         guard isValid, isInteractionEnabled else { return }
         style = newStyle
+        if textStyleHandler?(newStyle) == true { return }
         guard var item = selectedAnnotation, item.kind != .highlight, item.kind != .mosaic else { return }
         item.style = newStyle
-        replace(item, actionName: "修改样式")
+        replace(AnnotationTextLayout.refitted(item, in: document.imageBounds), actionName: "修改样式")
+    }
+
+    /// Steps through `AnnotationTextLayout.pointSizes`; returns false at either end.
+    @discardableResult
+    func stepFontSize(larger: Bool) -> Bool {
+        let scale = document.capture.sourceScale
+        let current = activeStyle.fontSize / scale
+        let sizes = AnnotationTextLayout.pointSizes
+        guard let next = larger ? sizes.first(where: { $0 > current + 0.01 })
+                                : sizes.last(where: { $0 < current - 0.01 }) else { return false }
+        var newStyle = activeStyle
+        newStyle.fontSize = next * scale
+        setStyle(newStyle)
+        return true
+    }
+
+    func toggleBold() {
+        var newStyle = activeStyle
+        newStyle.isBold.toggle()
+        setStyle(newStyle)
     }
 
     func beginCaptureStyleTransaction() {
@@ -215,8 +255,14 @@ import Observation
         let after = document.annotations.first { $0.id == t.id }
         guard after != t.before else { return }
         registerUndo(id: t.id, value: t.before, index: t.index, name: t.name)
-        // A newly created object should be immediately movable, not re-create on the next drag.
-        if t.before == nil, after != nil { selectedTool = .select }
+    }
+
+    /// Drawing tools stay active after each mark, so the first idle Escape only leaves
+    /// the tool; Escape in the select tool is what discards the capture.
+    func exitDrawingTool() -> Bool {
+        guard selectedTool != .select else { return false }
+        selectedTool = .select
+        return true
     }
 
     func cancelTransaction() {

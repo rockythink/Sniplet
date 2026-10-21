@@ -4,6 +4,8 @@ import SwiftUI
 struct CaptureStyleControls: View {
     @Binding var style: CaptureStyle
     var onEditingChanged: ((Bool) -> Void)? = nil
+    /// The inline editor previews on the real capture, so only Settings shows the sample.
+    var showsPreview = true
     @State private var isEditing = false
 
     var body: some View {
@@ -20,7 +22,7 @@ struct CaptureStyleControls: View {
             .labelsHidden()
             .help("选择预设会应用整套样式；下方参数可继续微调")
 
-            CaptureStylePreview(style: style)
+            if showsPreview { CaptureStylePreview(style: style) }
             fineControls
             Text("透明留白随阴影自动调整；边框位于图片内侧。")
                 .font(.caption)

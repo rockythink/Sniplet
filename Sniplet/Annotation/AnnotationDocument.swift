@@ -31,6 +31,21 @@ nonisolated enum AnnotationTool: String, CaseIterable, Sendable {
         case .highlight: "highlighter"
         }
     }
+    /// Single-key tool switching on the canvas, shown in the toolbar help.
+    var shortcutKey: Character {
+        switch self {
+        case .select: "v"
+        case .arrow: "a"
+        case .rectangle: "r"
+        case .pen: "p"
+        case .text: "t"
+        case .mosaic: "m"
+        case .highlight: "h"
+        }
+    }
+    static func forShortcut(_ key: String) -> Self? {
+        allCases.first { String($0.shortcutKey) == key.lowercased() }
+    }
 }
 
 /// Fixed sRGB components, independent of the interface appearance.
@@ -43,6 +58,8 @@ nonisolated struct AnnotationColor: Codable, Equatable, Sendable {
     static let white = Self(red: 1, green: 1, blue: 1)
     static let red = Self(red: 0.9, green: 0.12, blue: 0.12)
     static let blue = Self(red: 0.08, green: 0.35, blue: 0.95)
+    static let yellow = Self(red: 1, green: 0.78, blue: 0)
+    static let green = Self(red: 0.12, green: 0.68, blue: 0.3)
     static let highlight = Self(red: 1, green: 0.85, blue: 0, alpha: 0.3)
     var cgColor: CGColor {
         CGColor(colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!, components: [red, green, blue, alpha])!
@@ -53,6 +70,7 @@ nonisolated struct AnnotationStyle: Equatable, Sendable {
     var color: AnnotationColor = .red
     var lineWidth: CGFloat = 2
     var fontSize: CGFloat = 16
+    var isBold = false
 }
 
 nonisolated enum AnnotationPayload: Equatable, Sendable {

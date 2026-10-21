@@ -267,13 +267,7 @@ nonisolated enum AnnotationCompositor {
                 context.translateBy(x: rect.minX, y: rect.maxY)
                 context.scaleBy(x: 1, y: -1)
                 context.textMatrix = .identity
-                let font = CTFontCreateUIFontForLanguage(.system, annotation.style.fontSize, nil)
-                    ?? CTFontCreateWithName("Helvetica" as CFString, annotation.style.fontSize, nil)
-                let attributes: [NSAttributedString.Key: Any] = [
-                    NSAttributedString.Key(kCTFontAttributeName as String): font,
-                    NSAttributedString.Key(kCTForegroundColorAttributeName as String): annotation.style.color.cgColor
-                ]
-                let string = NSAttributedString(string: text, attributes: attributes)
+                let string = AnnotationTextLayout.attributedString(text, style: annotation.style)
                 let framesetter = CTFramesetterCreateWithAttributedString(string)
                 let path = CGPath(rect: CGRect(origin: .zero, size: rect.size), transform: nil)
                 CTFrameDraw(CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil), context)

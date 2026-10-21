@@ -75,11 +75,9 @@ import SwiftUI
         if !isPresented {
             isPresented = true
             let primary = NSHostingView(rootView: InlineAnnotationToolbar(
-                session: session, focusCanvas: { [weak self] in self?.focusCanvas() }
-            ) { [weak self] command in
-                self?.scrollView?.apply(command)
-                self?.updateSelectionChrome()
-            })
+                session: session, focusCanvas: { [weak self] in self?.focusCanvas() },
+                stateChanged: { [weak self] in self?.scheduleSessionRefresh() }
+            ))
             let actions = NSHostingView(rootView: InlineActionToolbar(
                 session: session,
                 preferences: preferences,
@@ -239,6 +237,12 @@ import SwiftUI
         updateSelectionChrome()
     }
 
+    /// Global screen rect the final image occupies at source scale, including style padding,
+    /// so a pin replaces the capture where it was taken.
+    var pinAnchorRect: CGRect {
+        CaptureFootprint.presentationRect(presentationBounds, imageSize: sourceImageSize, sourceRect: sourceRect)
+    }
+
     private func focusCanvas() {
         guard let canvas = scrollView?.canvas else { return }
         host.panel?.makeFirstResponder(canvas)
@@ -373,7 +377,7 @@ import SwiftUI
             sourceRect = EditorToolbarPlacement.relocatedSourceRect(sourceRect, from: oldFrame, to: screen.visibleFrame)
             host.relocate(to: screen.frame, displayID: DisplayGeometry.displayID(for: screen))
             hasAdjustedSelectionPresentation = false
-            scrollView?.apply(.fit)
+            scrollView?.refit()
         }
         visibleFrame = screen.visibleFrame
         host.lockSelection(sourceRect)
