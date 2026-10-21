@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 
 nonisolated enum AnnotationKind: String, CaseIterable, Sendable {
-    case arrow, rectangle, pen, text, mosaic, highlight
+    case arrow, rectangle, pen, text, counter, mosaic, highlight
 
     var label: String {
         switch self {
@@ -10,6 +10,7 @@ nonisolated enum AnnotationKind: String, CaseIterable, Sendable {
         case .rectangle: "矩形"
         case .pen: "画笔"
         case .text: "文字"
+        case .counter: "序号"
         case .mosaic: "马赛克"
         case .highlight: "高亮"
         }
@@ -17,7 +18,7 @@ nonisolated enum AnnotationKind: String, CaseIterable, Sendable {
 }
 
 nonisolated enum AnnotationTool: String, CaseIterable, Sendable {
-    case select, arrow, rectangle, pen, text, mosaic, highlight
+    case select, arrow, rectangle, pen, text, counter, mosaic, highlight
     var kind: AnnotationKind? { AnnotationKind(rawValue: rawValue) }
     var label: String { kind?.label ?? "选择" }
     var symbol: String {
@@ -27,6 +28,7 @@ nonisolated enum AnnotationTool: String, CaseIterable, Sendable {
         case .rectangle: "rectangle"
         case .pen: "pencil.tip"
         case .text: "textformat"
+        case .counter: "1.circle"
         case .mosaic: "square.grid.3x3"
         case .highlight: "highlighter"
         }
@@ -39,6 +41,7 @@ nonisolated enum AnnotationTool: String, CaseIterable, Sendable {
         case .rectangle: "r"
         case .pen: "p"
         case .text: "t"
+        case .counter: "n"
         case .mosaic: "m"
         case .highlight: "h"
         }
@@ -80,6 +83,9 @@ nonisolated enum AnnotationPayload: Equatable, Sendable {
     case rectangle(rect: CGRect)
     case pen(points: [CGPoint])
     case text(rect: CGRect, text: String)
+    /// A numbered badge. Its number is its position among the document's counters, so
+    /// deleting one renumbers the rest and undo restores them, with nothing to keep in sync.
+    case counter(center: CGPoint)
     case mosaic(rect: CGRect, blockSize: CGFloat)
     case highlight(rect: CGRect)
 
@@ -89,6 +95,7 @@ nonisolated enum AnnotationPayload: Equatable, Sendable {
         case .rectangle: .rectangle
         case .pen: .pen
         case .text: .text
+        case .counter: .counter
         case .mosaic: .mosaic
         case .highlight: .highlight
         }
@@ -109,5 +116,15 @@ nonisolated struct AnnotationDocument: Sendable {
     var captureStyle: CaptureStyle = .plain
     var imageBounds: CGRect {
         CGRect(x: 0, y: 0, width: capture.image.width, height: capture.image.height)
+    }
+
+    /// 1-based display number of a counter mark, or nil for any other mark.
+    func counterNumber(of id: UUID) -> Int? {
+        var number = 0
+        for item in annotations where item.kind == .counter {
+            number += 1
+            if item.id == id { return number }
+        }
+        return nil
     }
 }

@@ -411,6 +411,7 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
             case .mosaic: .mosaic(rect: rect, blockSize: editor.mosaicBlockSize)
             case .highlight: .highlight(rect: rect)
             case .text: .text(rect: rect, text: "")
+            case .counter: .counter(center: point)
             }
             let item = Annotation(payload: payload, style: editor.style)
             creation = item
@@ -442,6 +443,8 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
             case let .mosaic(_, block): .mosaic(rect: rect, blockSize: block)
             case .highlight: .highlight(rect: rect)
             case .text: item.payload
+            // A badge is placed on click; dragging before release only positions it.
+            case .counter: .counter(center: point)
             }
             creation = item
             editor.updateTransaction(item)
@@ -773,6 +776,7 @@ nonisolated private final class AnnotationAccessibilityElement: NSAccessibilityE
         return MainActor.assumeIsolated {
             guard let annotation = canvas()?.editor.document.annotations.first(where: { $0.id == id }) else { return nil }
             if case let .text(_, string) = annotation.payload { return "文字：\(string)" }
+            if let number = canvas()?.editor.document.counterNumber(of: id) { return "序号 \(number)" }
             return annotation.kind.label
         }
     }

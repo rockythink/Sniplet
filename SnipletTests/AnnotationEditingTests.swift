@@ -16,6 +16,7 @@ import Testing
         case .rectangle: .rectangle(rect: rect)
         case .pen: .pen(points: [rect.origin, CGPoint(x: 40, y: 70), CGPoint(x: 100, y: 80)])
         case .text: .text(rect: rect, text: "本地识别\n繁體中文")
+        case .counter: .counter(center: CGPoint(x: 60, y: 55))
         case .mosaic: .mosaic(rect: rect, blockSize: 16)
         case .highlight: .highlight(rect: rect)
         }
@@ -143,7 +144,7 @@ import Testing
         for kind in AnnotationKind.allCases { editor.insert(annotation(kind)) }
         let canvas = AnnotationCanvasView(editor: editor)
         let children = try #require(canvas.accessibilityChildren())
-        #expect(children.count == 6)
+        #expect(children.count == AnnotationKind.allCases.count)
         for (index, child) in children.enumerated() {
             let element = try #require(child as? NSAccessibilityElement)
             #expect(element.accessibilityPerformPress())

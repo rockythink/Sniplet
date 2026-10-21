@@ -78,6 +78,7 @@
 		C5E33007CA8A1838F9515BB5 /* DragExportFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DED30C45279290A96A5CD7E6 /* DragExportFileStore.swift */; };
 		C78FAD07FE6F26DF8294E55F /* ShortcutPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC391D60997E7B68F3C20C9 /* ShortcutPolicyTests.swift */; };
 		C9690E7FE3CDDB8D6004A578 /* InlineEditorToolbars.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A4FD49D185D20D2CACB7762 /* InlineEditorToolbars.swift */; };
+		CE14C3035CA2D22D559F7AD4 /* AnnotationCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2EDF65EF8950F70F3E3EDC3 /* AnnotationCounterTests.swift */; };
 		CFDC863A5B889544FB411844 /* AnnotationEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19234830A11AA4B46266D76A /* AnnotationEditor.swift */; };
 		D195F41DAFBD818FAA074804 /* CaptureRevision.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72A4F4C9D33D406DB8E455B /* CaptureRevision.swift */; };
 		D2D35604EC1B6AF4C8A283A8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ED1BE040D6A9D9565581C84 /* AppDelegate.swift */; };
@@ -174,6 +175,7 @@
 		B818CBE134C72FEFD9B1AB04 /* AppRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRuntime.swift; sourceTree = "<group>"; };
 		BB5A833EE5044EF8C87D738A /* HistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWindowController.swift; sourceTree = "<group>"; };
 		BD588B1F46620013BEAB8CA8 /* AnnotationToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationToolbar.swift; sourceTree = "<group>"; };
+		C2EDF65EF8950F70F3E3EDC3 /* AnnotationCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCounterTests.swift; sourceTree = "<group>"; };
 		C2FCB4FC778CB075CB85F1BE /* CaptureSelectionDragView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSelectionDragView.swift; sourceTree = "<group>"; };
 		C7F5A487568063487B1981A1 /* AnnotationCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCanvasView.swift; sourceTree = "<group>"; };
 		C84F78A5C67924FF99DE54AA /* CaptureStylePreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureStylePreset.swift; sourceTree = "<group>"; };
@@ -345,6 +347,7 @@
 		D972A66CB6F1269A752271F0 /* SnipletTests */ = {
 			isa = PBXGroup;
 			children = (
+				C2EDF65EF8950F70F3E3EDC3 /* AnnotationCounterTests.swift */,
 				4F00833EBC2533F98FA143C2 /* AnnotationEditingTests.swift */,
 				6BB954C0D6BF6B8D03FE932D /* AnnotationPreviewCoordinatorTests.swift */,
 				EB36ED77B6348D9F1ADDD826 /* AnnotationTextFormatTests.swift */,
@@ -512,6 +515,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE14C3035CA2D22D559F7AD4 /* AnnotationCounterTests.swift in Sources */,
 				A5D7D2D15F4C22D36F0BE7E1 /* AnnotationEditingTests.swift in Sources */,
 				37D821382B4A9EFD5C8E02B3 /* AnnotationPreviewCoordinatorTests.swift in Sources */,
 				76245657624D41CF1AF0FC39 /* AnnotationTextFormatTests.swift in Sources */,

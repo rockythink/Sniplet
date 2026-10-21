@@ -442,7 +442,7 @@ final class AppCoordinator {
         alert.informativeText = """
             从菜单栏或按 ⇧⌘A 开始截图，在选区原位标注，再复制、保存、钉图或拖出。
 
-            · 单键切换工具：V 选择、A 箭头、R 矩形、P 画笔、T 文字、M 马赛克、H 高亮
+            · 单键切换工具：V 选择、A 箭头、R 矩形、P 画笔、T 文字、N 序号、M 马赛克、H 高亮
             · 绘图工具下第一次 Esc 回到选择，再按 Esc 丢弃截图
             · 钉图可拖动、捏合缩放，Esc 关闭
 

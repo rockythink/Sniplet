@@ -26,8 +26,14 @@ nonisolated enum AnnotationGeometry {
                 result.union(CGRect(x: p.x, y: p.y, width: 0.001, height: 0.001))
             }.insetBy(dx: -annotation.style.lineWidth / 2, dy: -annotation.style.lineWidth / 2)
         case let .rectangle(rect), let .text(rect, _), let .mosaic(rect, _), let .highlight(rect): return rect
+        case let .counter(center):
+            let radius = counterRadius(annotation.style)
+            return CGRect(x: center.x - radius, y: center.y - radius, width: 2 * radius, height: 2 * radius)
         }
     }
+
+    /// Counters scale with the text size, so a badge reads like a label of the same size.
+    static func counterRadius(_ style: AnnotationStyle) -> CGFloat { style.fontSize * 0.75 }
 
     static func path(_ annotation: Annotation) -> CGPath {
         let path = CGMutablePath()
@@ -50,6 +56,8 @@ nonisolated enum AnnotationGeometry {
             }
         case let .rectangle(rect), let .text(rect, _), let .mosaic(rect, _), let .highlight(rect):
             path.addRect(rect)
+        case .counter:
+            path.addEllipse(in: bounds(annotation))
         }
         return path
     }
@@ -64,6 +72,8 @@ nonisolated enum AnnotationGeometry {
             return rect.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
         case let .text(rect, _), let .mosaic(rect, _), let .highlight(rect):
             return rect.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
+        case let .counter(center):
+            return hypot(point.x - center.x, point.y - center.y) <= counterRadius(annotation.style) + tolerance
         }
     }
 
@@ -71,7 +81,8 @@ nonisolated enum AnnotationGeometry {
     /// mosaic or highlight still starts a new mark. Pen strokes are never grabbed.
     static func outlineHit(_ annotation: Annotation, at point: CGPoint, tolerance: CGFloat) -> Bool {
         switch annotation.payload {
-        case .arrow: return hit(annotation, at: point, tolerance: tolerance)
+        // A badge is small and solid, so the whole badge counts as its outline.
+        case .arrow, .counter: return hit(annotation, at: point, tolerance: tolerance)
         case .pen: return false
         case let .rectangle(rect), let .text(rect, _), let .mosaic(rect, _), let .highlight(rect):
             return rect.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
@@ -83,7 +94,7 @@ nonisolated enum AnnotationGeometry {
         switch annotation.payload {
         case let .arrow(a, b): return [(.start, a), (.end, b)]
         // Text boxes always fit their content, so a hand-set size would not survive the next edit.
-        case .pen, .text: return []
+        case .pen, .text, .counter: return []
         default:
             let r = bounds(annotation)
             return [(.corner(0), CGPoint(x: r.minX, y: r.minY)),
@@ -102,6 +113,7 @@ nonisolated enum AnnotationGeometry {
         case let .pen(points): .pen(points: points.map(move))
         case let .rectangle(r): .rectangle(rect: moveRect(r))
         case let .text(r, text): .text(rect: moveRect(r), text: text)
+        case let .counter(center): .counter(center: move(center))
         case let .mosaic(r, size): .mosaic(rect: moveRect(r), blockSize: size)
         case let .highlight(r): .highlight(rect: moveRect(r))
         }

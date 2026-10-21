@@ -250,7 +250,9 @@ nonisolated enum AnnotationCompositor {
         drawImage(document.capture.image, in: document.imageBounds, context: context)
         context.setLineCap(.round)
         context.setLineJoin(.round)
+        var counterNumber = 0
         for annotation in document.annotations {
+            if annotation.kind == .counter { counterNumber += 1 }
             context.saveGState()
             context.setStrokeColor(annotation.style.color.cgColor)
             context.setFillColor(annotation.style.color.cgColor)
@@ -279,10 +281,38 @@ nonisolated enum AnnotationCompositor {
                 let framesetter = CTFramesetterCreateWithAttributedString(string)
                 let path = CGPath(rect: CGRect(origin: .zero, size: textRect.size), transform: nil)
                 CTFrameDraw(CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil), context)
+            case .counter:
+                drawCounter(annotation, number: counterNumber, in: context)
             case .mosaic: break
             }
             context.restoreGState()
         }
+    }
+
+    /// A filled badge with a thin ring, readable on light and dark content alike.
+    private static func drawCounter(_ annotation: Annotation, number: Int, in context: CGContext) {
+        let circle = AnnotationGeometry.bounds(annotation)
+        let ring = max(1, circle.width * 0.06)
+        context.setFillColor(annotation.style.color.cgColor)
+        context.fillEllipse(in: circle)
+        // White ring, except on a very light badge, which a white ring would not outline.
+        let color = annotation.style.color
+        let luminance = 0.2126 * color.red + 0.7152 * color.green + 0.0722 * color.blue
+        context.setStrokeColor(luminance > 0.85 ? CGColor(gray: 0, alpha: 0.25) : CGColor(gray: 1, alpha: 0.9))
+        context.setLineWidth(ring)
+        context.strokeEllipse(in: circle.insetBy(dx: ring / 2, dy: ring / 2))
+        var textStyle = annotation.style
+        textStyle.hasTextBackground = true
+        textStyle.isBold = true
+        textStyle.fontSize = circle.height * (number < 10 ? 0.58 : number < 100 ? 0.48 : 0.38)
+        let line = CTLineCreateWithAttributedString(AnnotationTextLayout.attributedString("\(number)", style: textStyle))
+        context.textMatrix = .identity
+        let glyphs = CTLineGetImageBounds(line, context)
+        // Center the inked glyphs, not the typographic box, so digits sit optically centered.
+        context.translateBy(x: circle.midX, y: circle.midY)
+        context.scaleBy(x: 1, y: -1)
+        context.textPosition = CGPoint(x: -glyphs.midX, y: -glyphs.midY)
+        CTLineDraw(line, context)
     }
 
     private static func drawContent(_ document: AnnotationDocument, in context: CGContext, ciContext: CIContext) throws {
