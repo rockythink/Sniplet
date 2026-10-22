@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Sniplet</title>
+    <link>https://sniplet.elazer.wang/appcast.xml</link>
+    <language>zh-CN</language>
+    <item>
+      <title>Sniplet 0.9.0</title>
+      <pubDate>Thu, 22 Oct 2026 11:45:33 GMT</pubDate>
+      <sparkle:version>15</sparkle:version>
+      <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<ul><li>支持自动更新（Sparkle）：菜单栏「检查更新…」，设置 → 更新可打开或关闭每日自动检查；第二次启动时会询问是否自动检查。</li><ul><li>联网只用于读取本站的版本信息、从 GitHub 下载更新包，并用 EdDSA 签名校验；不上传截图、录屏、文字或使用数据。</li><li>在你工作时发现的新版本只在菜单栏菜单里提示，不弹窗打断。</li></ul><li>从这一版起，之后的版本都可以在 App 内直接更新；从 0.8.0 及更早版本升级到 0.9.0 仍需手动下载一次。</li><li>免费开源，MIT 许可证；保留 CapCap 与 Sparkle 的 MIT 归属说明。官网：https://sniplet.elazer.wang/</li></ul>]]></description>
+      <enclosure url="https://github.com/rockythink/Sniplet/releases/download/v0.9.0/Sniplet-0.9.0-universal.zip" type="application/octet-stream" sparkle:edSignature="Yh15aEAUookbRPqkisQBKw3yabTLJrPxbJaffyAde+vrfd5oKi0xVK48BtWe4d+SDJ2eMPARGSS8obS03fG7CQ==" length="3609860" />
+    </item>
+  </channel>
+</rss>

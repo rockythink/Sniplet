@@ -2,19 +2,19 @@
 
 **截得刚刚好。** A free, open-source, native screenshot utility for macOS.
 
-Capture, annotate, beautify, then share — without leaving the selection. Built with Swift, SwiftUI/AppKit and ScreenCaptureKit. No account, cloud service, analytics, or network entitlement in the app.
+Capture, annotate, beautify, then share — without leaving the selection. Built with Swift, SwiftUI/AppKit and ScreenCaptureKit. No account, cloud service or analytics; the app goes online only to check for and download updates (Sparkle).
 
 [官网 / Website](https://sniplet.elazer.wang/) · [下载 / Downloads](https://github.com/rockythink/Sniplet/releases/latest) · [反馈 / Issues](https://github.com/rockythink/Sniplet/issues)
 
 ## Download & install
 
-**v0.8.0 · build 14 · macOS 14+ · Universal (Apple Silicon + Intel)**
+**v0.9.0 · build 15 · macOS 14+ · Universal (Apple Silicon + Intel)**
 
-- [Download DMG](https://github.com/rockythink/Sniplet/releases/download/v0.8.0/Sniplet-0.8.0-universal.dmg)
-- [Download ZIP](https://github.com/rockythink/Sniplet/releases/download/v0.8.0/Sniplet-0.8.0-universal.zip)
-- [SHA-256 checksums](https://github.com/rockythink/Sniplet/releases/download/v0.8.0/SHA256SUMS)
+- [Download DMG](https://github.com/rockythink/Sniplet/releases/download/v0.9.0/Sniplet-0.9.0-universal.dmg)
+- [Download ZIP](https://github.com/rockythink/Sniplet/releases/download/v0.9.0/Sniplet-0.9.0-universal.zip)
+- [SHA-256 checksums](https://github.com/rockythink/Sniplet/releases/download/v0.9.0/SHA256SUMS)
 
-Official v0.8.0 downloads are Developer ID signed, securely timestamped, Apple-notarized and stapled. Both app and DMG passed Gatekeeper assessment as `Notarized Developer ID`. This does not certify every feature or hardware/system combination.
+Official v0.9.0 downloads are Developer ID signed, securely timestamped, Apple-notarized and stapled. Both app and DMG passed Gatekeeper assessment as `Notarized Developer ID`. This does not certify every feature or hardware/system combination.
 
 打开 DMG，把 **Sniplet.app** 拖进 **Applications / 应用程序**。启动后在菜单栏找 Sniplet 图标（选框里拿出一块方片）；默认截图快捷键是 **Shift + Command + A（⇧⌘A）**。
 
@@ -48,7 +48,8 @@ macOS 将读取屏幕画面的权限称为“屏幕录制”或“录屏与系�
 
 ## Privacy & boundaries
 
-- App Sandbox + Hardened Runtime。业务 entitlement 只有 `app-sandbox` 和 `files.user-selected.read-write`；无网络、麦克风、相机、辅助功能控制、输入监控或 iCloud 权限。
+- App Sandbox + Hardened Runtime。entitlement 为 `app-sandbox`、`files.user-selected.read-write`、`network.client`，以及 Sparkle 安装器通信所需的两条 `mach-lookup` 临时例外；无麦克风、相机、辅助功能控制、输入监控或 iCloud 权限。
+- 联网只用于软件更新（Sparkle）：读取 `https://sniplet.elazer.wang/appcast.xml`，从 GitHub Release 下载更新包，并用 EdDSA 签名校验。不上传截图、录屏、文字或使用数据。是否自动检查由你在第二次启动时选择，设置里可随时更改。
 - 不为编辑底图另存副本，不保存可恢复图层或撤销栈。历史只保存最终图及其 OCR。编辑中崩溃或强退不能恢复未完成截图。
 - 兼容文件型拖放会暂存**最终 PNG**，和历史开关独立。取消删除本次文件；接收后延迟 10 分钟清理，供源界面关闭后的读取。退出打断的过期清理在下次拖出时补做，也可能由系统清理临时目录。
 - 复制使用 `currentHostOnly`，不轮询系统剪贴板。你主动导出到聊天、云盘或其他联网应用后，后续处理由接收方决定。
@@ -58,7 +59,7 @@ macOS 将读取屏幕画面的权限称为“屏幕录制”或“录屏与系�
 
 ## Build from source
 
-Toolchain used for v0.8.0: **Xcode 27.1 / Swift 6.4**, XcodeGen 2.46.0. Source uses Swift 6 complete concurrency checking and MainActor default isolation. Minimum deployment target is macOS 14.
+Toolchain used for v0.9.0: **Xcode 27.1 / Swift 6.4**, XcodeGen 2.46.0. Source uses Swift 6 complete concurrency checking and MainActor default isolation. Minimum deployment target is macOS 14.
 
 `project.yml` is the project configuration source; regenerate after configuration changes. The checked-in Xcode project is generated, not maintained separately.
 
@@ -124,13 +125,14 @@ The homepage's editable beautification sample is **explicitly labeled an illustr
 
 ## Verification status
 
-- v0.8.0: **215 tests in 41 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage includes styled-output transparency through PNG/TIFF encoding, background fills and padding, decoding of styles saved before backgrounds existed, never-overwrite quick-save naming and folder bookmarks, quick-save/auto-save session flows, recording geometry (display-local source rect, even encodable sizes, 4K downscale) and countdown/stop-button placement. Real screen recording, delayed capture against live menus, and the folder picker are verified manually only.
+- v0.9.0: **217 tests in 42 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage checks the shipped updater configuration (HTTPS appcast URL, 32-byte EdDSA public key, sandboxed installer service, no forced automatic checks). The packaged app's nested Sparkle helpers are Developer ID signed with secure timestamps and the appcast signature was verified with `sign_update --verify`. An end-to-end in-app update can first be exercised when the next version ships.
+- Earlier, v0.8.0: **215 tests in 41 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage includes styled-output transparency through PNG/TIFF encoding, background fills and padding, decoding of styles saved before backgrounds existed, never-overwrite quick-save naming and folder bookmarks, quick-save/auto-save session flows, recording geometry (display-local source rect, even encodable sizes, 4K downscale) and countdown/stop-button placement. Real screen recording, delayed capture against live menus, and the folder picker are verified manually only.
 - Earlier, v0.7.0: **197 tests in 35 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage includes remembered-region persistence and pixel-exact re-cropping at 1x/1.5x/2x, distinct default shortcuts, history drag-out payloads and the one-time what's-new policy. Display unplug fallback for the repeated region is not separately exercised.
 - Earlier, v0.6.0: **191 tests in 32 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage includes text fitting/formatting/background, counter numbering and rendering.
 - Earlier, v0.5.0: **170 tests passed / 258 parameterized runs**, 0 failures or skips, on Apple Silicon and macOS 27.0.1.
 - Actual synthetic PNG smoke covered resize, source-pixel alignment, fractional annotations, one-step undo/redo, move, clamp/cancel, style preservation and unchanged PNG bytes when changing selection hints. Unattached native scroll views reproduced the old recentering drift, then verified fixed opposite edges and pointer-matched resizing at 25% and 200% zoom. No visible window or real capture was used.
 - Earlier drag-path smoke covered private native file/image representations and background Objective-C file-promise callbacks.
-- Public v0.8.0 app ZIP and DMG notarization were both **Accepted**; stapled tickets and Gatekeeper acceptance were verified.
+- Public v0.9.0 app ZIP and DMG notarization were both **Accepted**; stapled tickets and Gatekeeper acceptance were verified.
 - **Not separately certified:** macOS 14 runtime, real Intel hardware, every chat/browser drop target, VoiceOver, IME edge cases, or real-device performance targets. A universal binary, passing unit tests and Apple notarization are not substitutes for these checks.
 - Native desktop interaction is manually tested by users; automated checks do not take over the desktop or trigger real captures.
 
@@ -141,5 +143,7 @@ When reporting a bug, include app version, macOS version and exact steps. Do not
 Sniplet is [MIT licensed](LICENSE), © 2026 Elazer.
 
 Selection/editor interaction geometry, image effects and final-file drag payload patterns adapt portions of [CapCap](https://github.com/realskyrin/capcap), pinned to `7dd035225eaa41e6da8a5156556a8c4dd7bd028b`. The original copyright and MIT license are retained in [ThirdPartyNotices.txt](Sniplet/Resources/ThirdPartyNotices.txt), included in the app bundle. CapCap's recording, scrolling capture, cloud upload and global keyboard monitoring are not part of Sniplet.
+
+Software updates use [Sparkle](https://sparkle-project.org) 2 (MIT), linked unmodified as a Swift package; its license is also in ThirdPartyNotices.txt. Sniplet's screen recording is its own ScreenCaptureKit code.
 
 Website font licenses: [Manrope](website/public/licenses/Manrope-OFL.txt) and [Noto Sans SC](website/public/licenses/NotoSansSC-OFL.txt), SIL Open Font License. Fonts and artwork are served locally, not through a font CDN.

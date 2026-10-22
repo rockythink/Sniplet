@@ -3,6 +3,10 @@ options:
   minimumXcodeGenVersion: 2.46.0
   deploymentTarget:
     macOS: "14.0"
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.4"
 settings:
   base:
     MACOSX_DEPLOYMENT_TARGET: "14.0"
@@ -29,6 +33,8 @@ targets:
   Sniplet:
     type: application
     platform: macOS
+    dependencies:
+      - package: Sparkle
     sources:
       - path: Sniplet
         excludes:
@@ -38,11 +44,14 @@ targets:
       path: Sniplet/Resources/Info.plist
       properties:
         CFBundleDisplayName: Sniplet
-        CFBundleShortVersionString: "0.8.0"
-        CFBundleVersion: "14"
+        CFBundleShortVersionString: "0.9.0"
+        CFBundleVersion: "15"
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
         NSHighResolutionCapable: true
+        SUFeedURL: https://sniplet.elazer.wang/appcast.xml
+        SUPublicEDKey: XuFRznifiRc27++J6yh7Og4LGkgS+c1mf1bRtnX4HZU=
+        SUEnableInstallerLauncherService: true
     settings:
       base:
         PRODUCT_NAME: Sniplet
