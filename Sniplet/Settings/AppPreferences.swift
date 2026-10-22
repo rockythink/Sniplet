@@ -40,6 +40,14 @@ final class AppPreferences {
         }
     }
 
+    /// Copy, pin and finish also drop a PNG into the ⌘S folder.
+    var autoSaveCopies: Bool {
+        didSet { defaults.set(autoSaveCopies, forKey: "export.autoSave") }
+    }
+
+    /// Offered by the editor's delayed recapture.
+    static let captureDelayChoices = [3, 5, 10]
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         historyEnabled = defaults.object(forKey: "history.enabled") as? Bool ?? true
@@ -51,6 +59,7 @@ final class AppPreferences {
             .flatMap { try? JSONDecoder().decode(CaptureSelectionAppearance.self, from: $0) }?.normalized ?? .standard
         lastCaptureRegion = defaults.data(forKey: "capture.lastRegion")
             .flatMap { try? JSONDecoder().decode(CaptureRegionMemory?.self, from: $0) } ?? nil
+        autoSaveCopies = defaults.bool(forKey: "export.autoSave")
         ClipboardService.marksCopiesTransient = transientCopyEnabled
     }
 }

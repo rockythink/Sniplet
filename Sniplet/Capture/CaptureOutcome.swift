@@ -123,6 +123,7 @@ import AppKit
         rootView?.tearDown()
         panelStorage?.onCopy = nil
         panelStorage?.onSave = nil
+        panelStorage?.onSaveAs = nil
         panelStorage?.onFinish = nil
         panelStorage?.onCancel = nil
         panelStorage?.delegate = nil
@@ -137,6 +138,7 @@ import AppKit
 @MainActor final class InlineCapturePanel: NSPanel {
     var onCopy: (() -> Void)?
     var onSave: (() -> Void)?
+    var onSaveAs: (() -> Void)?
     var onFinish: (() -> Void)?
     var onCancel: (() -> Void)?
     override var canBecomeKey: Bool { true }
@@ -159,6 +161,10 @@ import AppKit
             default: break
             }
             if [36, 76].contains(event.keyCode), let onFinish { onFinish(); return true }
+        }
+        if flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "s", let onSaveAs {
+            onSaveAs()
+            return true
         }
         return super.performKeyEquivalent(with: event)
     }

@@ -25,6 +25,15 @@ struct ClipboardService {
         markTransient(on: pasteboard)
     }
 
+    func copyFile(_ url: URL) throws {
+        let pasteboard = NSPasteboard.general
+        pasteboard.prepareForNewContents(with: .currentHostOnly)
+        guard pasteboard.writeObjects([url as NSURL]) else {
+            throw ClipboardError.failed
+        }
+        markTransient(on: pasteboard)
+    }
+
     private func markTransient(on pasteboard: NSPasteboard) {
         guard Self.marksCopiesTransient, let type = UTType("org.nspasteboard.TransientType") else { return }
         pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType(type.identifier))

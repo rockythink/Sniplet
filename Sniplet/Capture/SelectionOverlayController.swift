@@ -45,6 +45,7 @@ nonisolated struct CaptureSelectionGesture {
     private var completedScreen: CGDirectDisplayID?
     private var deferredClick: (point: CGPoint, screen: CaptureScreen)?
     private var deferredRegion: (rect: CGRect, screen: CaptureScreen)?
+
     func beginSelection(screens: [CaptureScreen], windowMode: Bool,
                         selectionAppearance: CaptureSelectionAppearance) {
         cancel()

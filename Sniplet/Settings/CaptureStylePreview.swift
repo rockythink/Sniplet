@@ -28,6 +28,8 @@ struct CaptureStylePreview: View {
                     }
             }
             .frame(width: sampleSize.width, height: sampleSize.height)
+            .padding(backgroundInsets(geometry))
+            .background(backgroundFill)
             .frame(maxWidth: .infinity)
             .frame(height: 148)
             .background(backdrop, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -38,6 +40,20 @@ struct CaptureStylePreview: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("截图美化样式示意，使用示例内容，不读取屏幕")
+    }
+
+    /// The chosen backdrop around the sample, as wide as the export's padding.
+    private func backgroundInsets(_ geometry: CaptureStyleGeometry) -> EdgeInsets {
+        guard style.background != .none else { return EdgeInsets() }
+        let bounds = geometry.presentationBounds
+        return EdgeInsets(top: -bounds.minY, leading: -bounds.minX,
+                          bottom: bounds.maxY - sampleSize.height, trailing: bounds.maxX - sampleSize.width)
+    }
+
+    @ViewBuilder private var backgroundFill: some View {
+        let colors = style.background.colors.map { Color(cgColor: $0) }
+        if colors.count == 1 { colors[0] }
+        else if colors.count > 1 { LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing) }
     }
 
     /// Fixed colors: the sample stands for a light screenshot in either appearance.

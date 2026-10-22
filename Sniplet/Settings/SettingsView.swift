@@ -52,6 +52,30 @@ struct SettingsView: View {
                     Text("Copyla 等剪贴板工具默认不收录临时内容，避免同一张图记两份；粘贴不受影响。")
                 }
             }
+            Section("存储") {
+                LabeledContent("⌘S 存放位置") {
+                    HStack {
+                        Text(coordinator.quickSaveFolder.displayPath.map { ($0 as NSString).lastPathComponent } ?? "未选择")
+                            .foregroundStyle(.secondary)
+                            .help(coordinator.quickSaveFolder.displayPath ?? "第一次按 ⌘S 时会让你选择")
+                        Button("更改…") { Task { _ = await coordinator.quickSaveFolder.choose() } }
+                    }
+                }
+                Toggle(isOn: Binding(get: { preferences.autoSaveCopies }, set: { enabled in
+                    guard enabled, coordinator.quickSaveFolder.resolve() == nil else {
+                        preferences.autoSaveCopies = enabled
+                        return
+                    }
+                    // Turning it on needs somewhere to save; dismissing the choice leaves it off.
+                    Task {
+                        if await coordinator.quickSaveFolder.choose() != nil { preferences.autoSaveCopies = true }
+                    }
+                })) {
+                    Text("完成截图时自动存一份")
+                    Text("复制、钉图或只存入历史时，同时把 PNG 存到上面的文件夹。")
+                }
+                caption("编辑截图时 ⌘S 直接存到这个文件夹、不弹窗，同名时自动加序号；⇧⌘S 另存为。")
+            }
         }
         .formStyle(.grouped)
     }
@@ -63,7 +87,7 @@ struct SettingsView: View {
             }
             Section("区域截图（常用）") {
                 ShortcutRecorderView(manager: coordinator.shortcuts, mode: .region)
-                caption("拖动框选，或单击截取所在窗口。")
+                caption("拖动框选，或单击截取所在窗口。选好区域后，工具栏里可以改为录屏，或延迟 3、5、10 秒截取：选框留在原处倒计时，这期间可以照常操作其他 App，时间到自动截好。录屏中再按一次停止。")
             }
             Section("窗口截图") {
                 ShortcutRecorderView(manager: coordinator.shortcuts, mode: .window)

@@ -6,7 +6,8 @@ nonisolated enum EditorPhase: Sendable {
 }
 
 nonisolated enum EditorOutput: Sendable {
-    case copyImage, save, pin, finish
+    /// `save` asks where (⇧⌘S); `quickSave` writes into the remembered folder (⌘S).
+    case copyImage, save, quickSave, pin, finish
 }
 
 struct EditorServices {
@@ -19,6 +20,11 @@ struct EditorServices {
     let shouldStoreHistory: () -> Bool
     let persist: (RenderedCapture, Data) async throws -> Void
     var saveDefaultStyle: (CaptureStyle) -> Void = { _ in }
+    /// PNG, creation date, whether it may ask for a folder; nil when no folder was chosen.
+    var quickSave: (Data, Date, Bool) async throws -> URL? = { _, _, _ in nil }
+    /// "Also keep a copy" for copy, pin and finish; never asks for a folder.
+    var autoSaves: () -> Bool = { false }
+    var quickSaveFinished: (Result<URL, Error>) -> Void = { _ in }
 }
 
 @Observable
@@ -171,7 +177,9 @@ final class EditorSession {
             defer { self.operationTask = nil }
             do {
                 let capture = try await self.renderFrozen(document)
-                let needsPNG = action == .copyImage || action == .save || self.services.shouldStoreHistory()
+                let autoSaves = action != .save && action != .quickSave && self.services.autoSaves()
+                let needsPNG = action == .copyImage || action == .save || action == .quickSave
+                    || autoSaves || self.services.shouldStoreHistory()
                 let png = needsPNG ? try await self.png(for: capture) : nil
                 guard self.accepts(CaptureRevision(capture)) else { return }
                 switch action {
@@ -183,10 +191,25 @@ final class EditorSession {
                         self.completeFinishAttempt(false)
                         return
                     }
+                case .quickSave:
+                    guard let url = try await self.services.quickSave(png!, capture.createdAt, true) else {
+                        self.cancelExport()
+                        self.completeFinishAttempt(false)
+                        return
+                    }
+                    self.services.quickSaveFinished(.success(url))
                 case .pin:
                     self.services.pin(capture)
                 case .finish:
                     break
+                }
+                // A failed extra copy never undoes the action the user actually asked for.
+                if autoSaves {
+                    do {
+                        if let url = try await self.services.quickSave(png!, capture.createdAt, false) {
+                            self.services.quickSaveFinished(.success(url))
+                        }
+                    } catch { self.services.quickSaveFinished(.failure(error)) }
                 }
                 guard self.accepts(CaptureRevision(capture)) else { return }
                 self.stageFinal(capture, pngData: png)

@@ -29,12 +29,47 @@ nonisolated struct CaptureStyle: Equatable, Codable, Sendable {
         }
     }
 
+    /// Fills the padding around the capture, so chat apps that flatten transparency
+    /// (WeChat paints it white) still show the shadow on an intended backdrop.
+    nonisolated enum Background: String, CaseIterable, Codable, Sendable {
+        case none, white, mist, graphite, sky, peach
+        var label: String {
+            switch self {
+            case .none: "透明"; case .white: "白色"; case .mist: "浅灰"; case .graphite: "深色"
+            case .sky: "蓝紫渐变"; case .peach: "暖橙渐变"
+            }
+        }
+        /// One color is solid; two run diagonally from the top-left.
+        var colors: [CGColor] {
+            let rgb: [[CGFloat]] = switch self {
+            case .none: []
+            case .white: [[1, 1, 1]]
+            case .mist: [[0.93, 0.94, 0.95]]
+            case .graphite: [[0.17, 0.18, 0.20]]
+            case .sky: [[0.55, 0.72, 0.98], [0.74, 0.62, 0.96]]
+            case .peach: [[1.0, 0.80, 0.62], [0.98, 0.62, 0.70]]
+            }
+            let space = CGColorSpace(name: CGColorSpace.sRGB)!
+            return rgb.map { CGColor(colorSpace: space, components: $0 + [1])! }
+        }
+    }
+
+    /// Logical points of backdrop around the capture when a background is chosen.
+    static let backgroundPadding: CGFloat = 32
+
     var cornerRadius: CGFloat = 0
     var shadow: Shadow = .off
     /// Zero disables the border. The border is drawn INSIDE the original image footprint.
     var borderWidth: CGFloat = 0
     var borderColor: BorderColor = .white
+    var background: Background = .none
     static let plain = Self()
+
+    /// Nothing to draw beyond the capture itself.
+    var isPlain: Bool {
+        let style = normalized
+        return style.cornerRadius == 0 && style.borderWidth == 0 && style.shadow == .off && style.background == .none
+    }
 
     var normalized: Self {
         var result = self
@@ -58,11 +93,17 @@ nonisolated struct CaptureStyle: Equatable, Codable, Sendable {
             top = max(top, fringe + max(layer.offset.height, 0))
             bottom = max(bottom, fringe + max(-layer.offset.height, 0))
         }
+        if style.background != .none {
+            let padding = Self.backgroundPadding * scale
+            left = max(left, padding); right = max(right, padding)
+            top = max(top, padding); bottom = max(bottom, padding)
+        }
         let bounds = CGRect(x: -ceil(left), y: -ceil(top),
                             width: imageSize.width + ceil(left) + ceil(right),
                             height: imageSize.height + ceil(top) + ceil(bottom)).integral
         return CaptureStyleGeometry(presentationBounds: bounds, contentBounds: content,
-                                    cornerRadius: radius, borderWidth: border, shadowLayers: layers)
+                                    cornerRadius: radius, borderWidth: border, shadowLayers: layers,
+                                    background: style.background)
     }
 
     // Adapted from CapCap WindowEffects.layers/shadowOutsets/shadowFringe, MIT,
@@ -87,6 +128,27 @@ nonisolated struct CaptureStyleGeometry: Sendable {
     let cornerRadius: CGFloat
     let borderWidth: CGFloat
     let shadowLayers: [CaptureShadowLayer]
+    let background: CaptureStyle.Background
+
+    var isPlain: Bool { cornerRadius == 0 && borderWidth == 0 && shadowLayers.isEmpty && background == .none }
+}
+
+/// Styles saved before a field existed decode with that field's default, not as a failure
+/// that would reset the user's whole default style.
+nonisolated extension CaptureStyle {
+    private enum DecodingKeys: String, CodingKey {
+        case cornerRadius, shadow, borderWidth, borderColor, background
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: DecodingKeys.self)
+        self.init()
+        cornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .cornerRadius) ?? cornerRadius
+        shadow = try container.decodeIfPresent(Shadow.self, forKey: .shadow) ?? shadow
+        borderWidth = try container.decodeIfPresent(CGFloat.self, forKey: .borderWidth) ?? borderWidth
+        borderColor = try container.decodeIfPresent(BorderColor.self, forKey: .borderColor) ?? borderColor
+        background = try container.decodeIfPresent(Background.self, forKey: .background) ?? background
+    }
 }
 
 nonisolated struct CaptureShadowLayer: Sendable {

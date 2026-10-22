@@ -16,7 +16,7 @@ final class CapturePermissionStore {
         if isAvailable { return true }
         let explanation = NSAlert()
         explanation.messageText = "允许 Sniplet 截图？"
-        explanation.informativeText = "Sniplet 需要屏幕录制权限来截图；不录制视频或音频，图像仅在本机处理。"
+        explanation.informativeText = "Sniplet 需要屏幕录制权限来截图和录屏；只在你主动开始录屏时录视频，不录声音，内容仅在本机处理。"
         if UserDefaults.standard.bool(forKey: "capture.hasRequestedAccess") {
             explanation.informativeText += "\n\n如果系统不再询问，请打开系统设置 → 隐私与安全性 → 屏幕录制（或屏幕与系统音频录制）。开启后请重试；必要时退出并手动重新打开 Sniplet。"
         }

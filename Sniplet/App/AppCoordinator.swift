@@ -12,6 +12,10 @@ final class AppCoordinator {
     private(set) var historyError: String?
     private(set) var historyRecoveryMessages: [String] = []
     private(set) var pinCount = 0
+    /// Seconds left before a delayed capture freezes the screen; nil when none is counting down.
+    private(set) var countdown: Int?
+    /// Whole seconds recorded so far; nil when no recording is running.
+    private(set) var recordingElapsed: Int?
 
     @ObservationIgnored lazy var shortcuts = GlobalHotKeyManager { [weak self] mode in
         self?.requestCapture(mode)
@@ -23,6 +27,15 @@ final class AppCoordinator {
     private let ocr = OCRService()
     private let files = FileExportService()
     private let pins = PinnedImageController()
+    private let countdownPanel = CountdownAreaPanel()
+    private let toast = StatusPillPanel()
+    let quickSaveFolder = QuickSaveFolder()
+    private let recordingEngine = ScreenRecordingEngine()
+    private let recordingBorder = RecordingBorderPanel()
+    private var recording: (url: URL, startedAt: Date, displayID: CGDirectDisplayID)?
+    private var recordingTask: Task<Void, Never>?
+    private var recordingClock: Task<Void, Never>?
+    private var recordingResults: [RecordingResultPanel] = []
     private var editor: InlineEditorController?
     private var historyWindow: HistoryWindowController?
     private var recoveryPanels: [UUID: InlineEditorController] = [:]
@@ -44,14 +57,18 @@ final class AppCoordinator {
         let mode: CaptureMode
         let displayID: CGDirectDisplayID
         var regionRect: CGRect?
+        /// Counts down first, then freezes before anything of Sniplet's appears.
+        var delaySeconds: Int?
     }
 
     var canCapture: Bool { !isCapturing && editor?.session.isBusy != true && !quitting }
     var hasPreviousRegion: Bool { preferences.lastCaptureRegion != nil }
+    var isRecording: Bool { recordingElapsed != nil }
 
     func start() {
         guard !started, !AppRuntime.isUnitTesting else { return }
         started = true
+        RecordingFiles.removeLeftovers()
         pins.onCountChange = { [weak self] count in self?.pinCount = count }
         permissions.refresh()
         shortcuts.registerSavedShortcuts()
@@ -69,6 +86,16 @@ final class AppCoordinator {
     }
 
     func requestCapture(_ mode: CaptureMode) {
+        // The main shortcut pressed during a countdown cancels it.
+        if countdown != nil {
+            if mode == .region { cancelDelayedCapture() }
+            return
+        }
+        // While recording, the main shortcut stops it: one key starts and ends everything.
+        if recording != nil, mode == .region {
+            stopRecording()
+            return
+        }
         guard canCapture else { return }
         // A remembered region on a display that is gone or rearranged falls back to a fresh selection.
         if mode == .previousRegion, let rect = preferences.lastCaptureRegion?.rect,
@@ -147,8 +174,15 @@ final class AppCoordinator {
         captureTask = Task { [weak self] in
             guard let self else { return }
             do {
+                if let seconds = request.delaySeconds, let area = request.regionRect {
+                    try await self.runCountdown(seconds: seconds, area: area)
+                    guard self.requestID == request.id else { return }
+                    // The user has likely switched apps while waiting; return focus there afterwards.
+                    self.previousApplication = NSWorkspace.shared.frontmostApplication
+                }
                 guard let outcome = try await self.captureWorkflow.capture(mode: request.mode,
                     displayID: request.displayID, regionRect: request.regionRect,
+                    freezeFirst: request.delaySeconds != nil,
                     selectionAppearance: self.preferences.selectionAppearance) else {
                     self.endCapture(request.id)
                     return
@@ -164,7 +198,8 @@ final class AppCoordinator {
                 self.endCapture(request.id)
                 self.present(EditorSession(capture: capture, captureStyle: self.preferences.defaultCaptureStyle,
                                            regionSelection: outcome.regionSelection, services: self.editorServices),
-                             on: screen, sourceRect: outcome.screenRect, host: outcome.host)
+                             on: screen, sourceRect: outcome.screenRect, host: outcome.host,
+                             offersAreaActions: true)
                 adopted = true
                 if capture.mode == .region, let region = outcome.regionSelection {
                     self.preferences.lastCaptureRegion = CaptureRegionMemory(rect: region.screenRect)
@@ -182,6 +217,143 @@ final class AppCoordinator {
         }
     }
 
+    /// The area stays outlined with the countdown in its middle; the user keeps working
+    /// underneath until it reaches zero.
+    private func runCountdown(seconds: Int, area: CGRect) async throws {
+        defer { stopCountdown() }
+        countdownPanel.show(around: area, appearance: preferences.selectionAppearance, secondsLeft: seconds) { [weak self] in
+            self?.cancelDelayedCapture()
+        }
+        for left in stride(from: seconds, to: 0, by: -1) {
+            countdown = left
+            countdownPanel.update(secondsLeft: left)
+            try await Task.sleep(for: .seconds(1))
+        }
+        // Gone before the frame is taken; captures exclude Sniplet's windows regardless.
+        stopCountdown()
+    }
+
+    private func stopCountdown() {
+        countdown = nil
+        countdownPanel.close()
+    }
+
+    /// A window can hang off its display; recording and recapture use the part on the
+    /// display it mostly occupies.
+    private func onScreenArea(_ rect: CGRect) -> (rect: CGRect, screen: CaptureScreen)? {
+        let area = { (screen: CaptureScreen) -> CGFloat in
+            let part = screen.frame.intersection(rect)
+            return part.isNull ? 0 : part.width * part.height
+        }
+        guard let screen = CaptureScreen.current().max(by: { area($0) < area($1) }), area(screen) > 0 else { return nil }
+        return (rect.intersection(screen.frame), screen)
+    }
+
+    /// From the editor: wait, then capture exactly this area again, frozen before Sniplet shows.
+    private func recaptureRegion(_ rect: CGRect, after seconds: Int) {
+        guard canCapture else { return }
+        guard let target = onScreenArea(rect) else {
+            showError(CaptureError.displayUnavailable.localizedDescription)
+            return
+        }
+        begin(CaptureRequest(mode: .previousRegion, displayID: target.screen.id, regionRect: target.rect,
+                             delaySeconds: seconds))
+    }
+
+    private func recordRegion(_ rect: CGRect) {
+        guard let target = onScreenArea(rect) else {
+            showError(CaptureError.displayUnavailable.localizedDescription)
+            return
+        }
+        startRecording(rect: target.rect, screen: target.screen)
+    }
+
+    private func startRecording(rect: CGRect, screen: CaptureScreen) {
+        guard recording == nil, recordingTask == nil else { return }
+        recordingTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.recordingTask = nil }
+            var file: URL?
+            do {
+                let startedAt = Date()
+                let url = try RecordingFiles.newURL(createdAt: startedAt)
+                file = url
+                // Shown first so the app is listed, and excluded, when the stream filter is built.
+                self.recordingBorder.show(around: rect)
+                try await self.recordingEngine.start(displayID: screen.id, rect: rect,
+                                                     screenFrame: screen.frame, to: url) { [weak self] error in
+                    Task { @MainActor in self?.stopRecording(interruptedBy: error) }
+                }
+                self.recording = (url, startedAt, screen.id)
+                self.startRecordingClock(from: startedAt)
+                self.recordingBorder.showStopButton(startedAt: startedAt) { [weak self] in self?.stopRecording() }
+                // Hand focus back to whatever is being recorded.
+                if NSWorkspace.shared.frontmostApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier {
+                    self.previousApplication?.activate(options: [])
+                }
+            } catch {
+                self.recordingBorder.close()
+                if let file { RecordingFiles.discard(file) }
+                if error is CancellationError { return }
+                self.permissions.refresh()
+                self.showError(self.permissions.isAvailable ? error.localizedDescription
+                               : CaptureError.permissionUnavailable.localizedDescription)
+            }
+        }
+    }
+
+    /// Finishes the file and shows it in a result card; an interrupted stream keeps what it got.
+    func stopRecording(interruptedBy interruption: Error? = nil) {
+        guard let current = recording, recordingTask == nil else { return }
+        recording = nil
+        recordingClock?.cancel()
+        recordingClock = nil
+        recordingElapsed = nil
+        recordingBorder.close()
+        recordingTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.recordingTask = nil }
+            do {
+                try await self.recordingEngine.stop()
+                self.showRecordingResult(RecordedVideo(url: current.url, createdAt: current.startedAt,
+                                                       duration: Date().timeIntervalSince(current.startedAt)),
+                                         displayID: current.displayID)
+                if interruption != nil { self.showError("录屏意外中断，已保留中断前录到的部分。") }
+            } catch {
+                RecordingFiles.discard(current.url)
+                self.showError(error.localizedDescription)
+            }
+        }
+    }
+
+    private func startRecordingClock(from start: Date) {
+        recordingElapsed = 0
+        recordingClock = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(250))
+                guard let self, self.recording != nil else { return }
+                let elapsed = Int(Date().timeIntervalSince(start))
+                if self.recordingElapsed != elapsed { self.recordingElapsed = elapsed }
+            }
+        }
+    }
+
+    private func showRecordingResult(_ video: RecordedVideo, displayID: CGDirectDisplayID) {
+        guard let screen = NSScreen.screens.first(where: { Self.displayID(for: $0) == displayID })
+                ?? NSScreen.main ?? NSScreen.screens.first else { return }
+        let panel = RecordingResultPanel(video: video)
+        panel.onError = { [weak self] message in self?.showError(message) }
+        panel.onClose = { [weak self, weak panel] in self?.recordingResults.removeAll { $0 === panel } }
+        recordingResults.append(panel)
+        panel.present(on: screen, stackIndex: recordingResults.count - 1)
+    }
+
+    func cancelDelayedCapture() {
+        guard countdown != nil, let id = requestID else { return }
+        captureTask?.cancel()
+        endCapture(id)
+    }
+
     private func cancelPendingCapture() {
         pendingCapture = nil
         isCapturing = false
@@ -192,6 +364,7 @@ final class AppCoordinator {
         requestID = nil
         captureTask = nil
         isCapturing = false
+        stopCountdown()
         NSApp.unhideWithoutActivation()
     }
 
@@ -201,6 +374,7 @@ final class AppCoordinator {
         requestID = nil
         captureTask?.cancel()
         captureTask = nil
+        stopCountdown()
         captureWorkflow.cancel()
         if hadCapture { showError("显示器布局已改变，本次截图已取消，请重试。") }
     }
@@ -223,11 +397,25 @@ final class AppCoordinator {
                            try await store.insert(capture, pngData: png)
                        }, saveDefaultStyle: { [weak self] style in
                            self?.preferences.defaultCaptureStyle = style
-                       })
+                       }, quickSave: { [weak self] png, createdAt, askIfNeeded in
+                           guard let self else { throw CancellationError() }
+                           return try await self.files.quickSave(pngData: png, createdAt: createdAt,
+                                                                 folder: self.quickSaveFolder, askIfNeeded: askIfNeeded)
+                       }, autoSaves: { [weak self] in self?.preferences.autoSaveCopies == true },
+                       quickSaveFinished: { [weak self] result in self?.reportQuickSave(result) })
+    }
+
+    private func reportQuickSave(_ result: Result<URL, Error>) {
+        switch result {
+        case let .success(url):
+            toast.flash("已存到「\(url.deletingLastPathComponent().lastPathComponent)」· \(url.lastPathComponent)")
+        case let .failure(error):
+            toast.flash("自动保存失败：" + error.localizedDescription, for: .seconds(4))
+        }
     }
 
     private func present(_ session: EditorSession, on screen: NSScreen, sourceRect: CGRect,
-                         host: InlineCaptureHost? = nil, recovery: Bool = false) {
+                         host: InlineCaptureHost? = nil, recovery: Bool = false, offersAreaActions: Bool = false) {
         if quitting { session.setTerminationRequested(true) }
         let panel = InlineEditorController(session: session, preferences: preferences, screen: screen,
                                           sourceRect: sourceRect, host: host)
@@ -245,6 +433,15 @@ final class AppCoordinator {
         }
         session.onPromiseFailure = { [weak self] capture, message, stored in
             self?.recoverPromise(capture, message: message, historyStored: stored)
+        }
+        if offersAreaActions {
+            // The editor closes first; act once its window is gone.
+            panel.onRecordRegion = { [weak self] rect in
+                DispatchQueue.main.async { [weak self] in self?.recordRegion(rect) }
+            }
+            panel.onDelayRegion = { [weak self] rect, seconds in
+                DispatchQueue.main.async { [weak self] in self?.recaptureRegion(rect, after: seconds) }
+            }
         }
         if recovery { recoveryPanels[session.id] = panel }
         else { editor = panel }
@@ -372,6 +569,14 @@ final class AppCoordinator {
                     guard let row = rows.first(where: { $0.id == id }) else { throw AppError.historyUnavailable }
                     let data = try await store.pngData(for: id)
                     _ = try await self.files.save(pngData: data, createdAt: row.createdAt)
+                case .quickSave:
+                    let rows = try await store.summaries(matching: "")
+                    guard let row = rows.first(where: { $0.id == id }) else { throw AppError.historyUnavailable }
+                    let data = try await store.pngData(for: id)
+                    if let url = try await self.files.quickSave(pngData: data, createdAt: row.createdAt,
+                                                                folder: self.quickSaveFolder) {
+                        self.reportQuickSave(.success(url))
+                    }
                 case .pin:
                     self.pins.pin(try await store.loadImage(id))
                 case .finish:
@@ -383,6 +588,21 @@ final class AppCoordinator {
 
     func requestTermination(reply: @escaping (Bool) -> Void) {
         guard !quitting else { reply(false); return }
+        // Finish the file first; its result card then asks to be saved like any other.
+        if recording != nil || recordingTask != nil {
+            stopRecording()
+            reply(false)
+            return
+        }
+        if !recordingResults.isEmpty {
+            let alert = NSAlert()
+            alert.messageText = "还有 \(recordingResults.count) 段录屏没有存储"
+            alert.informativeText = "退出后这些录屏会被删除。"
+            alert.addButton(withTitle: "取消")
+            alert.addButton(withTitle: "丢弃并退出")
+            guard alert.runForSniplet() == .alertSecondButtonReturn else { reply(false); return }
+            for panel in recordingResults { panel.close(discarding: true) }
+        }
         if editor?.session.isBusy == true || recoveryPanels.values.contains(where: { $0.session.isBusy })
             || historyOutputTask != nil || historyMaintenanceTask != nil {
             reply(false)
@@ -477,7 +697,7 @@ final class AppCoordinator {
         let alert = NSAlert()
         alert.messageText = "Sniplet 已在菜单栏就绪"
         alert.informativeText = """
-            从菜单栏或按 ⇧⌘A 开始截图，在选区原位标注，再复制、保存、钉图或拖出。⌃⌥⌘4 可直接重复上次的区域。
+            从菜单栏或按 ⇧⌘A 开始截图，在选区原位标注，再复制、保存、钉图或拖出。⌃⌥⌘4 可直接重复上次的区域。选好区域后，工具栏里还能改为录屏，或延迟几秒重截。
 
             · 单键切换工具：V 选择、A 箭头、R 矩形、P 画笔、T 文字、N 序号、M 马赛克、H 高亮
             · 绘图工具下第一次 Esc 回到选择，再按 Esc 丢弃截图

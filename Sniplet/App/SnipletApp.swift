@@ -9,8 +9,14 @@ struct SnipletApp: App {
         MenuBarExtra(isInserted: .constant(!AppRuntime.isUnitTesting)) {
             SnipletMenu(coordinator: delegate.coordinator)
         } label: {
-            Label("Sniplet", image: "MenuBarIcon")
-                .accessibilityLabel("Sniplet 截图")
+            if let elapsed = delegate.coordinator.recordingElapsed {
+                Text("\(Image(systemName: "stop.circle.fill")) \(RecordedVideo.format(TimeInterval(elapsed)))")
+                    .monospacedDigit()
+                    .accessibilityLabel("Sniplet 正在录屏")
+            } else {
+                Label("Sniplet", image: "MenuBarIcon")
+                    .accessibilityLabel("Sniplet 截图")
+            }
         }
         .menuBarExtraStyle(.menu)
 
@@ -30,7 +36,19 @@ private struct SnipletMenu: View {
             Button("\(title(mode))    \(coordinator.shortcuts.description(for: mode))") {
                 coordinator.requestCapture(mode)
             }
-            .disabled(!coordinator.canCapture || mode == .previousRegion && !coordinator.hasPreviousRegion)
+            .disabled(isDisabled(mode))
+        }
+        // Delay and recording start from the editor once an area is chosen; only their
+        // in-progress states belong here.
+        if let left = coordinator.countdown {
+            Divider()
+            Button("取消延迟截图（\(left)）", action: coordinator.cancelDelayedCapture)
+        }
+        if let elapsed = coordinator.recordingElapsed {
+            Divider()
+            Button("停止录制（\(RecordedVideo.format(TimeInterval(elapsed)))）    \(coordinator.shortcuts.description(for: .region))") {
+                coordinator.stopRecording()
+            }
         }
         Divider()
         Button("截图历史…", action: coordinator.showHistory)
@@ -45,6 +63,10 @@ private struct SnipletMenu: View {
         Divider()
         Button("退出 Sniplet") { NSApp.terminate(nil) }
             .keyboardShortcut("q", modifiers: .command)
+    }
+
+    private func isDisabled(_ mode: CaptureMode) -> Bool {
+        mode == .previousRegion ? !coordinator.canCapture || !coordinator.hasPreviousRegion : !coordinator.canCapture
     }
 
     private func title(_ mode: CaptureMode) -> String {

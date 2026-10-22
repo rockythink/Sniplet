@@ -24,7 +24,7 @@ struct CaptureStyleControls: View {
 
             if showsPreview { CaptureStylePreview(style: style) }
             fineControls
-            Text("透明留白随阴影自动调整；边框位于图片内侧。")
+            Text("留白随阴影自动调整；边框位于图片内侧。微信等会把透明留白铺成白色，选一个背景就能避开。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -84,6 +84,17 @@ struct CaptureStyleControls: View {
                 }
                 .labelsHidden().disabled(style.borderWidth == 0)
             }
+            GridRow {
+                Text("背景")
+                HStack(spacing: 6) {
+                    ForEach(CaptureStyle.Background.allCases, id: \.self) { background in
+                        BackgroundSwatch(background: background, isSelected: style.background == background) {
+                            editingChanged(false)
+                            style.background = background
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -91,5 +102,47 @@ struct CaptureStyleControls: View {
         guard isEditing != editing else { return }
         isEditing = editing
         onEditingChanged?(editing)
+    }
+}
+
+/// A round swatch per backdrop; "transparent" shows a checkerboard.
+private struct BackgroundSwatch: View {
+    let background: CaptureStyle.Background
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            fill
+                .frame(width: 20, height: 20)
+                .clipShape(Circle())
+                .overlay { Circle().strokeBorder(.secondary.opacity(0.5), lineWidth: 0.5) }
+                .padding(2)
+                .overlay { if isSelected { Circle().strokeBorder(Color.accentColor, lineWidth: 2) } }
+        }
+        .buttonStyle(.plain)
+        .help(background.label)
+        .accessibilityLabel("背景：\(background.label)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder private var fill: some View {
+        let colors = background.colors.map { Color(cgColor: $0) }
+        if colors.isEmpty {
+            Canvas { context, size in
+                let cell = size.width / 4
+                for row in 0..<4 {
+                    for column in 0..<4 where (row + column).isMultiple(of: 2) {
+                        context.fill(Path(CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell,
+                                                 width: cell, height: cell)), with: .color(.gray.opacity(0.35)))
+                    }
+                }
+            }
+            .background(.white)
+        } else if colors.count == 1 {
+            colors[0]
+        } else {
+            LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
     }
 }

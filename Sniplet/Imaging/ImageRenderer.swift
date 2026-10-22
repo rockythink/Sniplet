@@ -105,7 +105,7 @@ nonisolated enum AnnotationCompositor {
     static func drawPresentation(_ document: AnnotationDocument, in context: CGContext,
                                  ciContext: CIContext, cache: AnnotationPresentationCache? = nil) throws {
         let style = document.captureStyle.normalized
-        if style.cornerRadius == 0, style.borderWidth == 0, style.shadow == .off {
+        if style.isPlain {
             cache?.clear()
             try drawContent(document, in: context, ciContext: ciContext)
             return
@@ -115,6 +115,7 @@ nonisolated enum AnnotationCompositor {
         context.saveGState()
         defer { context.restoreGState() }
         context.interpolationQuality = .none
+        drawBackground(geometry, in: context)
         if let shadow = resources.shadowImage {
             drawImage(shadow, in: geometry.presentationBounds, context: context)
         }
@@ -136,13 +137,14 @@ nonisolated enum AnnotationCompositor {
     /// Never prepares a shadow or reuses a fully composited image on the event loop.
     static func drawPreview(_ document: AnnotationDocument, in context: CGContext, ciContext: CIContext,
                             geometry: CaptureStyleGeometry, cornerMask: CGImage?, shadow: CGImage?) throws {
-        if geometry.cornerRadius == 0, geometry.borderWidth == 0, geometry.shadowLayers.isEmpty {
+        if geometry.isPlain {
             try drawContent(document, in: context, ciContext: ciContext)
             return
         }
         context.saveGState()
         defer { context.restoreGState() }
         context.interpolationQuality = .none
+        drawBackground(geometry, in: context)
         if let shadow { drawImage(shadow, in: geometry.presentationBounds, context: context) }
         if let cornerMask { context.clip(to: document.imageBounds, mask: cornerMask) }
         context.beginTransparencyLayer(auxiliaryInfo: nil)
@@ -171,6 +173,23 @@ nonisolated enum AnnotationCompositor {
         context.fillPath()
         guard let mask = context.makeImage() else { throw AnnotationRenderingError.allocation }
         return mask
+    }
+
+    /// Fills the whole presentation, padding included, beneath the shadow.
+    private static func drawBackground(_ geometry: CaptureStyleGeometry, in context: CGContext) {
+        let colors = geometry.background.colors
+        let rect = geometry.presentationBounds
+        guard let first = colors.first else { return }
+        context.saveGState()
+        defer { context.restoreGState() }
+        context.clip(to: rect)
+        if colors.count == 1 {
+            context.setFillColor(first)
+            context.fill(rect)
+        } else if let gradient = CGGradient(colorsSpace: colorSpace, colors: colors as CFArray, locations: nil) {
+            context.drawLinearGradient(gradient, start: CGPoint(x: rect.minX, y: rect.minY),
+                                       end: CGPoint(x: rect.maxX, y: rect.maxY), options: [])
+        }
     }
 
     private static func drawBorder(_ style: CaptureStyle, geometry: CaptureStyleGeometry, in context: CGContext) {
@@ -365,8 +384,7 @@ actor ImageRenderer {
         // without a color conversion or a second full-size allocation.
         let geometry = document.captureStyle.geometry(imageSize: document.imageBounds.size,
                                                        sourceScale: document.capture.sourceScale)
-        if document.annotations.isEmpty, geometry.cornerRadius == 0,
-           geometry.borderWidth == 0, geometry.shadowLayers.isEmpty {
+        if document.annotations.isEmpty, geometry.isPlain {
             return RenderedCapture(id: document.capture.id, revision: document.revision,
                                    createdAt: document.capture.createdAt, mode: document.capture.mode,
                                    image: document.capture.image, sourceScale: document.capture.sourceScale)

@@ -12,6 +12,10 @@ import SwiftUI
     var onClose: (() -> Void)?
     /// The adjusted selection's global AppKit rect, after each move or resize.
     var onRegionChange: ((CGRect) -> Void)?
+    /// Set before `present()` for fresh captures; receives the current area in global points.
+    var onRecordRegion: ((CGRect) -> Void)?
+    /// Same: the region and the chosen delay for capturing it again.
+    var onDelayRegion: ((CGRect, Int) -> Void)?
     var window: NSWindow? { host.panel }
     private let host: InlineCaptureHost
     private var sourceRect: CGRect
@@ -70,7 +74,8 @@ import SwiftUI
         // Floating is below modalPanel; native save panels and alerts remain usable.
         panel.level = .floating
         panel.onCopy = { [weak self] in self?.copyImage() }
-        panel.onSave = { [weak self] in self?.session.output(.save) }
+        panel.onSave = { [weak self] in self?.session.output(.quickSave) }
+        panel.onSaveAs = { [weak self] in self?.session.output(.save) }
         panel.onFinish = { [weak self] in self?.finish() }
         panel.onCancel = { [weak self] in self?.cancelCapture() }
         root.onCancel = { [weak self] in self?.cancelCapture() }
@@ -85,7 +90,9 @@ import SwiftUI
                 preferences: preferences,
                 finish: { [weak self] in self?.finish() },
                 cancel: { [weak self] in self?.cancelCapture() },
-                stateChanged: { [weak self] in self?.scheduleSessionRefresh() }
+                stateChanged: { [weak self] in self?.scheduleSessionRefresh() },
+                recordRegion: onRecordRegion == nil ? nil : { [weak self] in self?.recordRegion() },
+                delayRegion: onDelayRegion == nil ? nil : { [weak self] seconds in self?.delayRegion(seconds) }
             ))
             primaryBar = InlineToolbarContainer(content: primary, horizontal: true)
             sideBar = InlineToolbarContainer(content: actions, horizontal: false)
@@ -304,6 +311,37 @@ import SwiftUI
         session.discard()
     }
 
+    /// Discards the screenshot (asking first if it has marks) and hands its area to recording.
+    private func recordRegion() {
+        guard let handler = onRecordRegion,
+              let rect = releaseRegion(title: "改为录屏会丢弃这张截图", confirm: "丢弃并录屏",
+                                       detail: "已经画上的标注不会保留。录屏会录制同一块区域。") else { return }
+        handler(rect)
+    }
+
+    /// Discards the screenshot and captures the same region again after a countdown.
+    private func delayRegion(_ seconds: Int) {
+        guard let handler = onDelayRegion,
+              let rect = releaseRegion(title: "延迟截图会丢弃当前的标注", confirm: "丢弃并开始倒计时",
+                                       detail: "已经画上的标注不会保留。\(seconds) 秒后会重新截取同一块区域。") else { return }
+        handler(rect, seconds)
+    }
+
+    private func releaseRegion(title: String, confirm: String, detail: String) -> CGRect? {
+        guard !session.isBusy, session.phase == .editing else { return nil }
+        if session.editor?.document.annotations.isEmpty == false {
+            let alert = NSAlert()
+            alert.messageText = title
+            alert.informativeText = detail
+            alert.addButton(withTitle: "取消")
+            alert.addButton(withTitle: confirm)
+            guard alert.runForSniplet() == .alertSecondButtonReturn else { return nil }
+        }
+        let rect = sourceRect
+        session.discard()
+        return rect
+    }
+
     func finish() {
         guard !session.isBusy else { return }
         if session.phase == .finalized {
@@ -340,6 +378,8 @@ import SwiftUI
         chrome = nil
         host.close()
         onRegionChange = nil
+        onRecordRegion = nil
+        onDelayRegion = nil
         let completion = onClose
         onClose = nil
         completion?()

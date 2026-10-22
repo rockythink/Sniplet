@@ -280,9 +280,9 @@ final class DragExportCoordinator: NSView, NSDraggingSource {
             setAccessibilityLabel("可拖出的截图")
             setAccessibilityHelp("按住并拖动，把这张截图拖到其他应用。")
         } else if onClick != nil {
-            toolTip = "单击保存为 PNG 文件（⌘S）；按住拖动可直接拖到 Finder、聊天窗口或上传区"
+            toolTip = "单击直接存到选定的文件夹（⌘S，首次会让你选文件夹；⇧⌘S 另存为）；按住拖动可直接拖到 Finder、聊天窗口或上传区"
             setAccessibilityLabel("保存或拖出图像")
-            setAccessibilityHelp("按下保存为 PNG 文件。也可以按住并拖动，把最终图像拖到其他应用。")
+            setAccessibilityHelp("按下直接把 PNG 存到选定的文件夹，Shift-Command-S 另存为。也可以按住并拖动，把最终图像拖到其他应用。")
         } else {
             toolTip = "按住并拖动最终图像到 Finder、聊天窗口或图片上传区；单击不会输出。"
             setAccessibilityLabel("拖出图像")

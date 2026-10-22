@@ -15,7 +15,9 @@ import AppKit
     }
 
     /// `previousRegion` needs `regionRect`, the remembered selection in global AppKit points on `displayID`.
+    /// `freezeFirst` (after a countdown) snapshots before any Sniplet window appears.
     func capture(mode: CaptureMode, displayID: CGDirectDisplayID, regionRect: CGRect? = nil,
+                 freezeFirst: Bool = false,
                  selectionAppearance: CaptureSelectionAppearance) async throws -> CaptureOutcome? {
         guard task == nil else { return nil }
         let id = UUID()
@@ -30,9 +32,20 @@ import AppKit
             var regionSelection: CaptureRegionSelection?
             var didTransfer = false
             defer { if !didTransfer { host?.close() } }
-            if mode == .region || mode == .window {
+            let selects = mode == .region || mode == .window
+            var frozen: [CGDirectDisplayID: CapturedImage] = [:]
+            var frozenWindows: Set<CGWindowID>?
+            if freezeFirst {
+                // Coming forward dismisses other apps' menus and popovers, so displays are
+                // captured before any Sniplet window appears; own windows are already excluded.
+                frozenWindows = try await service.prepare(requiredWindowIDs: [])
+                frozen = try await service.captureDisplays(selects ? screens.map(\.id) : [displayID])
+                try Task.checkCancellation()
+            }
+            if selects {
                 overlay.beginSelection(screens: screens, windowMode: mode == .window,
                                        selectionAppearance: selectionAppearance)
+                for image in frozen.values { overlay.deliverSnapshot(image) }
             } else if let screen = screens.first(where: { $0.id == displayID }) {
                 let feedback = InlineCaptureHost(screenFrame: screen.frame, displayID: screen.id,
                                                  selectionAppearance: selectionAppearance)
@@ -41,9 +54,14 @@ import AppKit
                 host = feedback
             }
             await Task.yield()
-            let requiredWindows = overlay.presentedWindowIDs.union(host?.panelWindowID.map { [$0] } ?? [])
-            let listedWindows = try await service.prepare(requiredWindowIDs: requiredWindows)
-            if mode == .region || mode == .window {
+            let listedWindows: Set<CGWindowID>
+            if let frozenWindows {
+                listedWindows = frozenWindows
+            } else {
+                let requiredWindows = overlay.presentedWindowIDs.union(host?.panelWindowID.map { [$0] } ?? [])
+                listedWindows = try await service.prepare(requiredWindowIDs: requiredWindows)
+            }
+            if selects {
                 overlay.deliverCandidates(WindowSelectionService.ordinaryWindows(capturableIDs: listedWindows))
             }
             let capture: CapturedImage
@@ -64,7 +82,9 @@ import AppKit
             case .previousRegion:
                 guard let regionRect, let screen = screens.first(where: { $0.id == displayID }),
                       screen.frame.insetBy(dx: -1, dy: -1).contains(regionRect), let host else { throw CaptureError.displayUnavailable }
-                let snapshot = try await service.captureDisplay(displayID)
+                let snapshot: CapturedImage
+                if let image = frozen[displayID] { snapshot = image }
+                else { snapshot = try await service.captureDisplay(displayID) }
                 try Task.checkCancellation()
                 host.setSnapshot(snapshot.image)
                 guard let region = CaptureRegionSelection(source: snapshot, screenFrame: screen.frame,
@@ -73,13 +93,15 @@ import AppKit
                 footprint = region.screenRect
                 capture = try region.croppedCapture()
             case .region, .window:
-                let primary = try await service.captureDisplay(displayID)
+                let primary: CapturedImage
+                if let image = frozen[displayID] { primary = image }
+                else { primary = try await service.captureDisplay(displayID) }
                 overlay.deliverSnapshot(primary)
-                let others = screens.map(\.id).filter { $0 != displayID }
-                let remaining = Task { [overlay, service] in
+                let others = screens.map(\.id).filter { $0 != displayID && frozen[$0] == nil }
+                let remaining = Task { [overlay, service, frozen] in
                     let images = try await service.captureDisplays(others)
                     for image in images.values { overlay.deliverSnapshot(image) }
-                    return images
+                    return images.merging(frozen) { live, _ in live }
                 }
                 let selection = await overlay.waitForSelection()
                 guard let selection else { remaining.cancel(); return nil }

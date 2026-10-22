@@ -44,7 +44,7 @@ private struct InlineBeautificationButton: View {
             Image(systemName: "sparkles").frame(width: 32, height: 32)
         }
         .buttonStyle(InlineToolbarButtonStyle(isSelected: showsStyle || editor.document.captureStyle != .plain))
-        .help("美化这张截图：选择预设，或调整圆角、阴影和边框")
+        .help("美化这张截图：选择预设，或调整圆角、阴影、边框和背景")
         .accessibilityLabel("截图美化")
         .popover(isPresented: $showsStyle) {
             VStack(alignment: .leading, spacing: 10) {
@@ -63,7 +63,7 @@ private struct InlineBeautificationButton: View {
                             savedDefault = true
                         }
                         .disabled(savedDefault)
-                        .help("把当前圆角、阴影和边框保存为新截图的默认美化，之后不用再逐张调整")
+                        .help("把当前圆角、阴影、边框和背景保存为新截图的默认美化，之后不用再逐张调整")
                         if savedDefault {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
@@ -85,6 +85,10 @@ struct InlineActionToolbar: View {
     let finish: () -> Void
     let cancel: () -> Void
     let stateChanged: () -> Void
+    /// Fresh captures only: swap this screenshot for a recording of the same area.
+    var recordRegion: (() -> Void)? = nil
+    /// Fresh captures only: capture the same area again after this many seconds.
+    var delayRegion: ((Int) -> Void)? = nil
     @State private var showsStatus = false
     @State private var showsOCR = false
 
@@ -93,7 +97,7 @@ struct InlineActionToolbar: View {
             // Save and drag-out share one button: a click saves, a drag carries the image out.
             // Intentionally never conditionally replace, disable or re-identify this
             // native view while async prepareDrag changes the session's busy state.
-            DragExportHandle(onClick: { session.output(.save) },
+            DragExportHandle(onClick: { session.output(.quickSave) },
                              isClickEnabled: session.canOutput && !session.isBusy,
                              prepare: session.prepareDrag,
                              onAccepted: session.dragAccepted,
@@ -119,6 +123,27 @@ struct InlineActionToolbar: View {
                 }
                 .help(hasError ? "查看输出错误与历史重试" : "查看文字识别结果")
                 .accessibilityLabel("截图状态与重试")
+            }
+            if let recordRegion, session.editor != nil {
+                action("录制这块区域", symbol: "record.circle",
+                       help: "放弃这张截图，改为录制同一块区域；点红框旁的「停止」、再按 ⇧⌘A 或从菜单栏停止", action: recordRegion)
+                    .disabled(session.isBusy)
+            }
+            if let delayRegion, session.editor != nil {
+                Menu {
+                    ForEach(AppPreferences.captureDelayChoices, id: \.self) { seconds in
+                        Button("\(seconds) 秒后截取这块区域") { delayRegion(seconds) }
+                    }
+                } label: {
+                    Image(systemName: "timer").frame(width: 32, height: 32)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.borderless)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("延迟截图：选框留在原处、中间倒计时，这期间可以照常操作其他 App；时间到自动截下这块区域")
+                .accessibilityLabel("延迟截取这块区域")
+                .disabled(session.isBusy)
             }
             Divider().frame(width: 24)
             Button(action: cancel) {
