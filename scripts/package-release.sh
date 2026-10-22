@@ -49,12 +49,25 @@ cat > "$WORK/expected-entitlements.plist" <<'PLIST'
 <plist version="1.0"><dict>
 <key>com.apple.security.app-sandbox</key><true/>
 <key>com.apple.security.files.user-selected.read-write</key><true/>
+<key>com.apple.security.network.client</key><true/>
+<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+<array><string>com.elazer.Sniplet-spks</string><string>com.elazer.Sniplet-spki</string></array>
 </dict></plist>
 PLIST
 codesign -d --verbose=4 "$SOURCE" 2> "$OUTPUT/evidence/source-signature.txt"
 # Preserve the app's identity/team without modifying the original or installed app.
 /usr/bin/grep -Fx "Authority=$IDENTITY" "$OUTPUT/evidence/source-signature.txt" >/dev/null || { echo 'Requested identity differs from source Developer ID.' >&2; exit 2; }
 ditto "$SOURCE" "$APP"
+# Sparkle ships its helpers ad hoc signed. Notarization needs every nested executable signed
+# with this identity and a secure timestamp: inside out, never --deep (Sparkle sandboxing docs).
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+[[ -d "$SPARKLE" ]] || { echo 'Sparkle.framework is missing from the app.' >&2; exit 2; }
+for item in XPCServices/Installer.xpc Autoupdate Updater.app; do
+    codesign --force --sign "$IDENTITY" --options runtime --timestamp "$SPARKLE/Versions/B/$item"
+done
+codesign --force --sign "$IDENTITY" --options runtime --timestamp --preserve-metadata=entitlements \
+    "$SPARKLE/Versions/B/XPCServices/Downloader.xpc"
+codesign --force --sign "$IDENTITY" --options runtime --timestamp "$SPARKLE"
 codesign --force --sign "$IDENTITY" --options runtime --timestamp \
     --entitlements "$WORK/expected-entitlements.plist" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP" 2>&1 | tee "$OUTPUT/evidence/app-signature-verification.txt"
@@ -63,7 +76,10 @@ codesign -d --verbose=4 "$APP" 2> "$OUTPUT/evidence/app-signature.txt"
 /usr/bin/grep -E '^CodeDirectory .*flags=.*\(runtime\)' "$OUTPUT/evidence/app-signature.txt" >/dev/null
 codesign -d --entitlements - --xml "$APP" > "$OUTPUT/evidence/entitlements.plist" 2> "$OUTPUT/evidence/entitlements-command.txt"
 plutil -convert json -o "$WORK/entitlements.json" "$OUTPUT/evidence/entitlements.plist"
-jq -e '. == {"com.apple.security.app-sandbox": true, "com.apple.security.files.user-selected.read-write": true}' "$WORK/entitlements.json" >/dev/null
+jq -e '. == {"com.apple.security.app-sandbox": true, "com.apple.security.files.user-selected.read-write": true,
+             "com.apple.security.network.client": true,
+             "com.apple.security.temporary-exception.mach-lookup.global-name": ["com.elazer.Sniplet-spks", "com.elazer.Sniplet-spki"]}' \
+    "$WORK/entitlements.json" >/dev/null
 lipo -archs "$APP/Contents/MacOS/Sniplet" | tee "$OUTPUT/evidence/architectures.txt"
 case "$(cat "$OUTPUT/evidence/architectures.txt")" in
     'arm64 x86_64'|'x86_64 arm64') ;;

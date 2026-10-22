@@ -52,6 +52,15 @@ struct SettingsView: View {
                     Text("Copyla 等剪贴板工具默认不收录临时内容，避免同一张图记两份；粘贴不受影响。")
                 }
             }
+            Section("更新") {
+                Toggle(isOn: Binding(get: { coordinator.updater.automaticallyChecksForUpdates },
+                                     set: { coordinator.updater.automaticallyChecksForUpdates = $0 })) {
+                    Text("自动检查更新")
+                    Text("每天到官网读取一次版本信息，有新版本时提醒你；不上传截图、录屏或任何使用数据。")
+                }
+                Button("立即检查更新…", action: coordinator.updater.checkForUpdates)
+                    .disabled(!coordinator.updater.canCheckForUpdates)
+            }
             Section("存储") {
                 LabeledContent("⌘S 存放位置") {
                     HStack {

@@ -6,7 +6,7 @@ nonisolated enum LaunchGuidance: Equatable {
     case introduction, whatsNew, none
 
     /// Bump with each release that has notes worth one alert; earlier builds stored nothing (0).
-    static let notesRevision = 2
+    static let notesRevision = 3
     static let introductionKey = "app.hasShownIntroduction"
     static let notesKey = "app.seenWhatsNewRevision"
 
@@ -28,6 +28,7 @@ nonisolated enum LaunchGuidance: Equatable {
 
     static let whatsNewTitle = "Sniplet 有这些新变化"
     static let whatsNewText = """
+        · 支持自动更新：菜单栏「检查更新…」，或在设置 → 更新里打开自动检查。联网只用于检查和下载更新，不上传任何内容
         · 先选区域（框选、窗口或整屏），工具栏里多了两个功能：
           录制这块区域：直接录成 MP4，点红框旁的「停止」或再按 ⇧⌘A 结束，录完可预览
           延迟截图：选 3、5、10 秒，选框留在原处、中间倒计时，这期间照常操作其他 App，时间到自动截好

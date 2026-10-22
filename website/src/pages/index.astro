@@ -24,7 +24,7 @@ const faqs = [
   { q: '选完区域，还能重新取景吗？', a: '可以。选区确定后，拖动四个角或四条边调整大小；在选择工具下，拖动没有标注的画面空白处移动取景框。全屏和窗口截图也能在各自原始冻结底图的范围内调整，不会重新抓取此刻的屏幕。' },
   { q: '选区提示和图片美化是一回事吗？', a: '不是。到“设置 → 截图外观”，可以选择选区提示的颜色，以及实线、虚线或点线。它们只帮助你看清选区，不会进入输出 PNG。默认图片美化是另一项设置，控制最终图像的圆角、阴影、边框和背景。' },
   { q: '为什么需要屏幕录制权限？', a: 'macOS 把读取屏幕画面的权限叫作“屏幕录制”（新系统可能叫“录屏与系统音频录制”）。截图只抓取单帧；只有你主动开始录屏时才录视频，且不录声音。请在系统设置中选择 Applications 里的 Sniplet；若系统要求重开，请自行退出再打开。' },
-  { q: '截图和识别内容会上传吗？', a: '应用没有网络访问权限，也没有云同步、遥测或账号系统。OCR 使用本机 Vision，历史保存在本机。你主动把最终图像拖到聊天或上传区后，后续处理由接收应用决定。本官网由 Cloudflare 托管，不使用分析或广告脚本；托管方仍可能处理正常访问日志。' },
+  { q: '截图和识别内容会上传吗？', a: '不会。应用联网只用于检查和下载更新：读取本站的版本信息，从 GitHub 下载经签名校验的更新包；没有云同步、遥测或账号系统，也不上传截图、录屏或文字。OCR 使用本机 Vision，历史保存在本机。你主动把最终图像拖到聊天或上传区后，后续处理由接收应用决定。本官网由 Cloudflare 托管，不使用分析或广告脚本；托管方仍可能处理正常访问日志。' },
   { q: '历史和临时图片可以控制吗？', a: '可以在设置里关闭历史，已有记录不会自动删除，可以另行清空。历史只存最终图，默认最多 500 张、图片合计 1 GiB。文件型拖放会暂存最终 PNG，取消时删除，被接收后延迟 10 分钟清理；退出打断的过期清理在下次拖出时补做，不保存可恢复编辑底图。' },
   { q: '和剪贴板管理器一起用，会重复吗？', a: '功能开关由你决定：可以关闭 OCR，也可以选择为复制内容添加临时类型标记，供支持这一约定的剪贴板工具过滤。是否收录取决于对方设置。Sniplet 不检测或联动其他应用。' },
   { q: '遇到问题，去哪里反馈？', a: '到 GitHub Issues 描述 macOS 版本、Sniplet 版本和复现步骤即可。不方便截图时，用文字描述也可以。不要上传私人截图、敏感文字或完整个人日志。' },
@@ -98,7 +98,7 @@ const faqs = [
           <figcaption><span class="demo-label">交互示意</span><span id="preset-status" aria-live="polite">轻柔：圆角与淡阴影，让画面轻一点</span></figcaption>
         </figure>
       </section>
-      <div class="values-strip wrap"><span><Icon name="apple" size={17}/>原生 Swift / AppKit</span><span><Icon name="shield" size={17}/>应用无网络访问权限</span><span><Icon name="code" size={17}/>MIT 许可证开源</span></div>
+      <div class="values-strip wrap"><span><Icon name="apple" size={17}/>原生 Swift / AppKit</span><span><Icon name="shield" size={17}/>联网只为检查更新</span><span><Icon name="code" size={17}/>MIT 许可证开源</span></div>
       <section id="features" class="features wrap section-space" aria-labelledby="features-title">
         <div class="section-heading"><div><p class="eyebrow">LESS FRICTION. MORE CLARITY.</p><h2 id="features-title">截完，就把事情说明白。</h2></div><p>不需要一整套创作软件。<br/>需要的时候，刚好够用。</p></div>
         <div class="feature-columns">{features.map((feature) => <article class="feature"><div class="feature-top"><span class="mono">/{feature.n}</span><Icon name={feature.icon} size={26}/></div><h3>{feature.title}</h3><p>{feature.text}</p><div class="feature-tags">{feature.tags.map(tag => <span>{tag}</span>)}</div></article>)}</div>

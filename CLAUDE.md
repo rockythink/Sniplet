@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Sniplet is a native macOS menu-bar screenshot utility (capture → in-place annotate/beautify → copy/save/pin/drag, local OCR and history). Swift 6 + SwiftUI/AppKit + ScreenCaptureKit, macOS 14+, sandboxed, no network entitlement. A separate Astro static site lives in `website/`.
+Sniplet is a native macOS menu-bar screenshot utility (capture → in-place annotate/beautify → copy/save/pin/drag, local OCR and history). Swift 6 + SwiftUI/AppKit + ScreenCaptureKit, macOS 14+, sandboxed; the only network use is Sparkle software updates. A separate Astro static site lives in `website/`.
 
 ## Commands
 
@@ -69,7 +69,8 @@ Other subsystems:
 
 ## Constraints
 
-- Entitlements are only `app-sandbox` and `files.user-selected.read-write`. Do not add network, accessibility, input monitoring or other entitlements, analytics, or global keyboard monitoring.
+- Entitlements are `app-sandbox`, `files.user-selected.read-write`, `network.client` (Sparkle updates only) and Sparkle's two `mach-lookup` temporary exceptions (`$(PRODUCT_BUNDLE_IDENTIFIER)-spks`/`-spki`). `scripts/package-release.sh` asserts exactly this set. Do not add other network use, accessibility, input monitoring or other entitlements, analytics, or global keyboard monitoring.
+- Updates: `SoftwareUpdater` wraps Sparkle 2 (`SUFeedURL` https://sniplet.elazer.wang/appcast.xml, EdDSA `SUPublicEDKey`; the private key lives only in the maintainer's login Keychain). After packaging and notarizing, `scripts/update-appcast.sh --version X --notes notes.md` signs the ZIP and writes `website/public/appcast.xml`; deploy the website to publish it. The package script re-signs Sparkle's nested helpers (inside out, never `--deep`).
 - Clipboard writes use `currentHostOnly`; never poll the system pasteboard.
 - UI strings are Simplified Chinese.
 - Portions are adapted from CapCap (MIT); keep `Sniplet/Resources/ThirdPartyNotices.txt` intact.

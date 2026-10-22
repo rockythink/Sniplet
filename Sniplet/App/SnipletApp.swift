@@ -32,6 +32,10 @@ private struct SnipletMenu: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
+        if let version = coordinator.updater.pendingVersion {
+            Button("更新到 v\(version)…", action: coordinator.updater.checkForUpdates)
+            Divider()
+        }
         ForEach(GlobalHotKeyManager.modes, id: \.self) { mode in
             Button("\(title(mode))    \(coordinator.shortcuts.description(for: mode))") {
                 coordinator.requestCapture(mode)
@@ -55,6 +59,8 @@ private struct SnipletMenu: View {
         if coordinator.pinCount > 0 {
             Button("关闭所有钉图（\(coordinator.pinCount)）", action: coordinator.closeAllPins)
         }
+        Button("检查更新…", action: coordinator.updater.checkForUpdates)
+            .disabled(!coordinator.updater.canCheckForUpdates)
         Button("设置…") {
             NSApp.activate(ignoringOtherApps: true)
             openSettings()

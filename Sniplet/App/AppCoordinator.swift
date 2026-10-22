@@ -30,6 +30,7 @@ final class AppCoordinator {
     private let countdownPanel = CountdownAreaPanel()
     private let toast = StatusPillPanel()
     let quickSaveFolder = QuickSaveFolder()
+    let updater = SoftwareUpdater()
     private let recordingEngine = ScreenRecordingEngine()
     private let recordingBorder = RecordingBorderPanel()
     private var recording: (url: URL, startedAt: Date, displayID: CGDirectDisplayID)?
@@ -69,6 +70,7 @@ final class AppCoordinator {
         guard !started, !AppRuntime.isUnitTesting else { return }
         started = true
         RecordingFiles.removeLeftovers()
+        updater.start()
         pins.onCountChange = { [weak self] count in self?.pinCount = count }
         permissions.refresh()
         shortcuts.registerSavedShortcuts()
