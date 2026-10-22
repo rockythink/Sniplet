@@ -8,28 +8,29 @@ Capture, annotate, beautify, then share — without leaving the selection. Built
 
 ## Download & install
 
-**v0.7.0 · build 13 · macOS 14+ · Universal (Apple Silicon + Intel)**
+**v0.8.0 · build 14 · macOS 14+ · Universal (Apple Silicon + Intel)**
 
-- [Download DMG](https://github.com/rockythink/Sniplet/releases/download/v0.7.0/Sniplet-0.7.0-universal.dmg)
-- [Download ZIP](https://github.com/rockythink/Sniplet/releases/download/v0.7.0/Sniplet-0.7.0-universal.zip)
-- [SHA-256 checksums](https://github.com/rockythink/Sniplet/releases/download/v0.7.0/SHA256SUMS)
+- [Download DMG](https://github.com/rockythink/Sniplet/releases/download/v0.8.0/Sniplet-0.8.0-universal.dmg)
+- [Download ZIP](https://github.com/rockythink/Sniplet/releases/download/v0.8.0/Sniplet-0.8.0-universal.zip)
+- [SHA-256 checksums](https://github.com/rockythink/Sniplet/releases/download/v0.8.0/SHA256SUMS)
 
-Official v0.7.0 downloads are Developer ID signed, securely timestamped, Apple-notarized and stapled. Both app and DMG passed Gatekeeper assessment as `Notarized Developer ID`. This does not certify every feature or hardware/system combination.
+Official v0.8.0 downloads are Developer ID signed, securely timestamped, Apple-notarized and stapled. Both app and DMG passed Gatekeeper assessment as `Notarized Developer ID`. This does not certify every feature or hardware/system combination.
 
 打开 DMG，把 **Sniplet.app** 拖进 **Applications / 应用程序**。启动后在菜单栏找 Sniplet 图标（选框里拿出一块方片）；默认截图快捷键是 **Shift + Command + A（⇧⌘A）**。
 
-macOS 将读取屏幕画面的权限称为“屏幕录制”或“录屏与系统音频录制”。首次截图时按应用引导，在系统设置中允许 `/Applications/Sniplet.app`。Sniplet 只抓取单帧，不录制视频、音频或鼠标指针。系统如要求重开，请手动退出再打开；不要重置所有应用的权限或移除安全隔离属性。
+macOS 将读取屏幕画面的权限称为“屏幕录制”或“录屏与系统音频录制”。首次截图时按应用引导，在系统设置中允许 `/Applications/Sniplet.app`。截图只抓取单帧、不含鼠标指针；只有你主动开始录屏时才录视频（含指针，不录声音）。系统如要求重开，请手动退出再打开；不要重置所有应用的权限或移除安全隔离属性。
 
 ## Features
 
 | 功能 | 行为 |
 | --- | --- |
-| 截取 | 默认入口悬停/单击选窗口，拖动截区域；另有独立窗口与整屏入口；「重复上次区域」不用重新框选，直接截同一块区域。区域限制在起始显示器，不跨屏拼接 |
+| 截取 | 默认入口悬停/单击选窗口，拖动截区域；另有独立窗口与整屏入口；「重复上次区域」不用重新框选，直接截同一块区域；选好区域后可「延迟截图」：选框留在原处、中间倒计时，这期间可以照常操作其他 App，时间到先定格再截，菜单、悬停提示和弹窗不会消失。区域限制在起始显示器，不跨屏拼接 |
+| 录屏 | 先选区域（框选、窗口或整屏），再点工具栏的「录制这块区域」；点红框旁的「停止」、再按 ⇧⌘A 或从菜单栏停止；30 帧 H.264 MP4，含鼠标指针，不录声音。录完在屏幕角落预览、存储、拷贝或拖出，不进入截图历史 |
 | 原位编辑 | 工具条就在选区旁；箭头、矩形、画笔、文字、序号、马赛克、高亮，支持移动、调整、删除、撤销与重做。文字可调字号、加粗和底色，输入中实时生效；序号按顺序自动编号，删除后自动补位 |
 | 调整取景框 | 拖动四角或四边缩放；在“选择”工具下拖动没有标注的位置移动。沿用冻结底图，不重新读取屏幕；窗口/整屏截图也可在原始底图内缩放。缩放时标注保持对齐原始像素，支持整步撤销与重做 |
 | 选区提示框 | 设置 → 截图外观，可自选颜色与实线、虚线、点线；截图与编辑共用设置，仅影响操作提示，不印进最终图或 OCR |
-| 默认美化 | 原图、轻柔、细框、展示四种预设；圆角、阴影与边框可调，并可设为之后截图的默认 |
-| 输出 | 复制、保存 PNG、钉图与拖出（保存按钮单击保存、按住拖出）。使用同一版本的最终成图，不导出工具条、控制点或可恢复图层 |
+| 默认美化 | 原图、轻柔、细框、展示四种预设；圆角、阴影、边框与背景（透明、纯色或渐变）可调，并可设为之后截图的默认。选了背景的图完全不透明，发到微信等聊天软件不会出现白边 |
+| 输出 | 复制、保存 PNG、钉图与拖出（保存按钮单击直接存到选定的文件夹、按住拖出）；可选完成截图时自动存一份。区域截图还能一键改为录制同一块区域。使用同一版本的最终成图，不导出工具条、控制点或可恢复图层 |
 | 拖出 | 真实拖动后才准备数据；同一项提供最终 PNG 文件 URL、PNG/TIFF 和文件承诺，兼顾文件型与图像型接收端；取消继续编辑 |
 | 钉图 | 多张只读最终图独立缩放、移动、复制和关闭 |
 | 本地 OCR | Vision 中文/英文识别；只识别处理后的最终图。编辑、撤销或取消会使旧结果失效 |
@@ -38,9 +39,9 @@ macOS 将读取屏幕画面的权限称为“屏幕录制”或“录屏与系�
 
 ### 快捷键与操作
 
-- 默认区域入口 **⇧⌘A**；窗口 **⌃⌥⌘5**；整屏 **⌃⌥⌘3**；重复上次区域 **⌃⌥⌘4**。设置内可改绑、清除、恢复默认；原有自定义不会被覆盖。
+- 默认区域入口 **⇧⌘A**；窗口 **⌃⌥⌘5**；整屏 **⌃⌥⌘3**；重复上次区域 **⌃⌥⌘4**。选好区域后，工具栏里可以改为录屏，或延迟 3/5/10 秒截取；录屏中再按 **⇧⌘A** 停止。设置内可改绑、清除、恢复默认；原有自定义不会被覆盖。
 - **Return / ⌘C**：复制最终图并完成；文字编辑或选中文字时，⌘C 优先文本复制。
-- **⌘S** 保存 PNG；**⌘Return** 不复制、只存入历史并关闭；**⌘Z / ⇧⌘Z** 撤销 / 重做。
+- **⌘S** 直接存到选定的文件夹（首次会让你选，之后不弹窗，同名自动加序号）；**⇧⌘S** 另存为；**⌘Return** 不复制、只存入历史并关闭；**⌘Z / ⇧⌘Z** 撤销 / 重做。
 - 画完一个标注后工具保持不变，可连续标注；单键切换工具：**V** 选择、**A** 箭头、**R** 矩形、**P** 画笔、**T** 文字、**N** 序号、**M** 马赛克、**H** 高亮。
 - 文字：**⌘B** 加粗，**⌘+ / ⌘−** 调字号；输入中和选中文字时都可用。
 - 拖动中 **Esc** 还原本次操作；使用绘图工具时第一次 Esc 回到选择，在选择工具下再按 Esc 才丢弃当前截图。跨应用拖出请按住侧边的保存按钮拖动，不是拖动标注画布。
@@ -57,7 +58,7 @@ macOS 将读取屏幕画面的权限称为“屏幕录制”或“录屏与系�
 
 ## Build from source
 
-Toolchain used for v0.7.0: **Xcode 27.1 / Swift 6.4**, XcodeGen 2.46.0. Source uses Swift 6 complete concurrency checking and MainActor default isolation. Minimum deployment target is macOS 14.
+Toolchain used for v0.8.0: **Xcode 27.1 / Swift 6.4**, XcodeGen 2.46.0. Source uses Swift 6 complete concurrency checking and MainActor default isolation. Minimum deployment target is macOS 14.
 
 `project.yml` is the project configuration source; regenerate after configuration changes. The checked-in Xcode project is generated, not maintained separately.
 
@@ -123,12 +124,13 @@ The homepage's editable beautification sample is **explicitly labeled an illustr
 
 ## Verification status
 
-- v0.7.0: **197 tests in 35 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage includes remembered-region persistence and pixel-exact re-cropping at 1x/1.5x/2x, distinct default shortcuts, history drag-out payloads and the one-time what's-new policy. Display unplug fallback for the repeated region is not separately exercised.
+- v0.8.0: **215 tests in 41 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage includes styled-output transparency through PNG/TIFF encoding, background fills and padding, decoding of styles saved before backgrounds existed, never-overwrite quick-save naming and folder bookmarks, quick-save/auto-save session flows, recording geometry (display-local source rect, even encodable sizes, 4K downscale) and countdown/stop-button placement. Real screen recording, delayed capture against live menus, and the folder picker are verified manually only.
+- Earlier, v0.7.0: **197 tests in 35 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage includes remembered-region persistence and pixel-exact re-cropping at 1x/1.5x/2x, distinct default shortcuts, history drag-out payloads and the one-time what's-new policy. Display unplug fallback for the repeated region is not separately exercised.
 - Earlier, v0.6.0: **191 tests in 32 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage includes text fitting/formatting/background, counter numbering and rendering.
 - Earlier, v0.5.0: **170 tests passed / 258 parameterized runs**, 0 failures or skips, on Apple Silicon and macOS 27.0.1.
 - Actual synthetic PNG smoke covered resize, source-pixel alignment, fractional annotations, one-step undo/redo, move, clamp/cancel, style preservation and unchanged PNG bytes when changing selection hints. Unattached native scroll views reproduced the old recentering drift, then verified fixed opposite edges and pointer-matched resizing at 25% and 200% zoom. No visible window or real capture was used.
 - Earlier drag-path smoke covered private native file/image representations and background Objective-C file-promise callbacks.
-- Public v0.7.0 app ZIP and DMG notarization were both **Accepted**; stapled tickets and Gatekeeper acceptance were verified.
+- Public v0.8.0 app ZIP and DMG notarization were both **Accepted**; stapled tickets and Gatekeeper acceptance were verified.
 - **Not separately certified:** macOS 14 runtime, real Intel hardware, every chat/browser drop target, VoiceOver, IME edge cases, or real-device performance targets. A universal binary, passing unit tests and Apple notarization are not substitutes for these checks.
 - Native desktop interaction is manually tested by users; automated checks do not take over the desktop or trigger real captures.
 

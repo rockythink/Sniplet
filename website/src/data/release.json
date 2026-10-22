@@ -1,8 +1,8 @@
 {
-  "version": "0.7.0",
-  "build": "13",
+  "version": "0.8.0",
+  "build": "14",
   "repository": "https://github.com/rockythink/Sniplet",
-  "release": "https://github.com/rockythink/Sniplet/releases/tag/v0.7.0",
-  "download": "https://github.com/rockythink/Sniplet/releases/download/v0.7.0/Sniplet-0.7.0-universal.dmg",
-  "zip": "https://github.com/rockythink/Sniplet/releases/download/v0.7.0/Sniplet-0.7.0-universal.zip"
+  "release": "https://github.com/rockythink/Sniplet/releases/tag/v0.8.0",
+  "download": "https://github.com/rockythink/Sniplet/releases/download/v0.8.0/Sniplet-0.8.0-universal.dmg",
+  "zip": "https://github.com/rockythink/Sniplet/releases/download/v0.8.0/Sniplet-0.8.0-universal.zip"
 }

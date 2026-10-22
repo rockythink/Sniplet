@@ -38,8 +38,8 @@ targets:
       path: Sniplet/Resources/Info.plist
       properties:
         CFBundleDisplayName: Sniplet
-        CFBundleShortVersionString: "0.7.0"
-        CFBundleVersion: "13"
+        CFBundleShortVersionString: "0.8.0"
+        CFBundleVersion: "14"
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
         NSHighResolutionCapable: true
