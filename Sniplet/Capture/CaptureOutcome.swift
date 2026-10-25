@@ -197,7 +197,7 @@ import AppKit
     var selection: CGRect? { didSet { needsDisplay = true } }
     /// Window hover uses a CleanShot-like strong accent treatment, distinct from region dashes.
     var isHoverHighlight = false { didSet { needsDisplay = true } }
-    var instruction = "拖动选择区域 · 单击截取窗口 · Esc 取消" { didSet { needsDisplay = true } }
+    var instruction = "拖动选择区域 · 单击截取窗口或整屏 · Esc 取消" { didSet { needsDisplay = true } }
     /// Pixel size drawn beside the dragged region, like the editor's selection badge.
     var selectionLabel: String? { didSet { if selectionLabel != oldValue { needsDisplay = true } } }
     private(set) var isLocked = false

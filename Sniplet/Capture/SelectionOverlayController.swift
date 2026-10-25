@@ -27,6 +27,22 @@ nonisolated struct CaptureSelectionGesture {
     }
 }
 
+/// What a click (or hover) picks: the ordinary window under the pointer, or, in region mode,
+/// the whole display when nothing is there (desktop, menu bar, Dock).
+nonisolated enum CaptureClickTarget: Sendable {
+    case window(WindowCandidate)
+    case screen
+
+    static func resolve(at quartzPoint: CGPoint, candidates: [WindowCandidate], windowMode: Bool) -> CaptureClickTarget? {
+        if let window = WindowSelectionService.hit(at: quartzPoint, candidates: candidates) { return .window(window) }
+        return windowMode ? nil : .screen
+    }
+
+    var window: WindowCandidate? {
+        if case let .window(candidate) = self { candidate } else { nil }
+    }
+}
+
 /// The overlay owns all hosts until one is explicitly transferred. Completion locks the
 /// selected host *without closing it*, and releases every other screen immediately.
 @MainActor final class SelectionOverlayController {
@@ -61,7 +77,8 @@ nonisolated struct CaptureSelectionGesture {
             guard let view = host.rootView else { continue }
             view.instruction = "正在准备截图…"
             view.setAccessibilityLabel(windowMode ? "选择窗口" : "选择截图区域")
-            view.setAccessibilityHelp("单击选中悬停窗口，拖动创建区域。不跨屏拼接。Escape 取消。")
+            view.setAccessibilityHelp(windowMode ? "单击选中悬停窗口。Escape 取消。"
+                                      : "单击选中悬停窗口，在空白处单击截取整个屏幕，拖动创建区域。不跨屏拼接。Escape 取消。")
             view.onDown = { [weak self] point in self?.mouseDown(point, screen: screen) }
             view.onDrag = { [weak self] point in self?.mouseDragged(point) }
             view.onUp = { [weak self] point in self?.mouseUp(point) }
@@ -179,12 +196,7 @@ nonisolated struct CaptureSelectionGesture {
         if !isWindowMode { mouseDragged(point) }
         if gesture?.didDrag == true {
             guard let selection, selection.width > 0, selection.height > 0 else { resetGesture(); return }
-            if let capture = snapshots[id] {
-                complete(.region(capture, selection, screen), rect: selection, screen: screen)
-            } else {
-                deferredRegion = (selection, screen)
-                hosts[id]?.rootView?.instruction = "正在冻结画面…"
-            }
+            completeRegion(selection, screen: screen)
         } else if !candidatesReady {
             deferredClick = (point, screen)
             hosts[id]?.rootView?.instruction = "正在识别窗口…"
@@ -195,20 +207,39 @@ nonisolated struct CaptureSelectionGesture {
 
     private func finishClick(_ point: CGPoint, screen: CaptureScreen) {
         let quartz = DisplayGeometry.quartzPoint(point, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
-        if let candidate = WindowSelectionService.hit(at: quartz, candidates: candidates) {
+        switch CaptureClickTarget.resolve(at: quartz, candidates: candidates, windowMode: isWindowMode) {
+        case let .window(candidate)?:
             let rect = DisplayGeometry.appKitRect(candidate.bounds, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
             complete(.window(candidate, screen), rect: rect, screen: screen)
-        } else {
+        case .screen?:
+            completeRegion(screen.frame, screen: screen)
+        case nil:
             resetGesture()
+        }
+    }
+
+    /// Waits for the display's frozen frame when the selection beats it.
+    private func completeRegion(_ rect: CGRect, screen: CaptureScreen) {
+        if let capture = snapshots[screen.id] {
+            complete(.region(capture, rect, screen), rect: rect, screen: screen)
+        } else {
+            deferredRegion = (rect, screen)
+            hosts[screen.id]?.rootView?.instruction = "正在冻结画面…"
         }
     }
 
     private func mouseMoved(_ point: CGPoint, screen: CaptureScreen) {
         guard selectedScreen == nil, finished == nil else { return }
         let quartz = DisplayGeometry.quartzPoint(point, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
-        hovered = WindowSelectionService.hit(at: quartz, candidates: candidates)
-        let highlight = hovered.map {
-            DisplayGeometry.appKitRect($0.bounds, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
+        // Until windows are known, nothing is highlighted rather than flashing the whole screen.
+        let target = candidatesReady
+            ? CaptureClickTarget.resolve(at: quartz, candidates: candidates, windowMode: isWindowMode) : nil
+        hovered = target?.window
+        let highlight: CGRect? = switch target {
+        case let .window(candidate)?:
+            DisplayGeometry.appKitRect(candidate.bounds, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
+        case .screen?: screen.frame
+        case nil: nil
         }
         // Same size badge as region dragging, on the pointer's display at its capture scale.
         let scale = snapshots[screen.id].map { CGFloat($0.image.width) / screen.frame.width }
@@ -258,7 +289,7 @@ nonisolated struct CaptureSelectionGesture {
 
     private func refreshInstruction() {
         guard deferredRegion == nil, deferredClick == nil, selectedScreen == nil, finished == nil else { return }
-        let ready = isWindowMode ? "单击截取普通窗口 · Esc 取消" : "拖动选择区域 · 单击截取窗口 · Esc 取消"
+        let ready = isWindowMode ? "单击截取普通窗口 · Esc 取消" : "拖动选择区域 · 单击截取窗口或整屏 · Esc 取消"
         for screen in screens {
             let preparing = snapshots[screen.id] == nil && !candidatesReady
             hosts[screen.id]?.rootView?.instruction = preparing ? "正在准备截图…" : ready

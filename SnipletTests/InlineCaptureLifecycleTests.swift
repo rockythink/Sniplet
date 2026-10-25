@@ -94,6 +94,26 @@ struct CaptureSelectionGestureTests {
     }
 }
 
+struct CaptureClickTargetTests {
+    private let window = WindowCandidate(id: 4, bounds: CGRect(x: 10, y: 10, width: 200, height: 100))
+
+    @Test(arguments: [false, true])
+    func clickOnWindowPicksItInEitherMode(_ windowMode: Bool) {
+        let target = CaptureClickTarget.resolve(at: CGPoint(x: 50, y: 50), candidates: [window], windowMode: windowMode)
+        #expect(target?.window?.id == window.id)
+    }
+
+    @Test func regionClickOnBlankAreaPicksWholeScreen() {
+        let target = CaptureClickTarget.resolve(at: CGPoint(x: 500, y: 500), candidates: [window], windowMode: false)
+        guard case .screen? = target else { Issue.record("expected the whole screen, got \(String(describing: target))"); return }
+        #expect(target?.window == nil)
+    }
+
+    @Test func windowModeClickOnBlankAreaPicksNothing() {
+        #expect(CaptureClickTarget.resolve(at: CGPoint(x: 500, y: 500), candidates: [window], windowMode: true) == nil)
+    }
+}
+
 struct CaptureFootprintTests {
     @Test func sourceFootprintUsesActualOutwardRoundedPixelsOnNegativeScreen() throws {
         let screen = CGRect(x: -1000, y: 200, width: 1000, height: 800)
