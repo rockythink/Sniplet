@@ -5,13 +5,13 @@
     <link>https://sniplet.elazer.wang/appcast.xml</link>
     <language>zh-CN</language>
     <item>
-      <title>Sniplet 0.9.0</title>
-      <pubDate>Thu, 22 Oct 2026 11:45:33 GMT</pubDate>
-      <sparkle:version>15</sparkle:version>
-      <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
+      <title>Sniplet 0.9.1</title>
+      <pubDate>Sun, 25 Oct 2026 03:48:38 GMT</pubDate>
+      <sparkle:version>16</sparkle:version>
+      <sparkle:shortVersionString>0.9.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<ul><li>支持自动更新（Sparkle）：菜单栏「检查更新…」，设置 → 更新可打开或关闭每日自动检查；第二次启动时会询问是否自动检查。</li><ul><li>联网只用于读取本站的版本信息、从 GitHub 下载更新包，并用 EdDSA 签名校验；不上传截图、录屏、文字或使用数据。</li><li>在你工作时发现的新版本只在菜单栏菜单里提示，不弹窗打断。</li></ul><li>从这一版起，之后的版本都可以在 App 内直接更新；从 0.8.0 及更早版本升级到 0.9.0 仍需手动下载一次。</li><li>免费开源，MIT 许可证；保留 CapCap 与 Sparkle 的 MIT 归属说明。官网：https://sniplet.elazer.wang/</li></ul>]]></description>
-      <enclosure url="https://github.com/rockythink/Sniplet/releases/download/v0.9.0/Sniplet-0.9.0-universal.zip" type="application/octet-stream" sparkle:edSignature="Yh15aEAUookbRPqkisQBKw3yabTLJrPxbJaffyAde+vrfd5oKi0xVK48BtWe4d+SDJ2eMPARGSS8obS03fG7CQ==" length="3609860" />
+      <description><![CDATA[<ul><li>截图时在桌面、菜单栏或 Dock 等空白处单击，即可截取整个屏幕。</li><ul><li>指针停在空白处时整屏高亮并显示像素尺寸，单击后照常在原处标注、拖边调整选区。</li><li>悬停窗口单击截窗口、拖动截区域不变；窗口模式（⌃⌥⌘5）仍只选窗口，整屏入口 ⌃⌥⌘3 也保留。</li></ul><li>0.9.0 用户可以在菜单栏「检查更新…」直接更新到这一版。</li></ul>]]></description>
+      <enclosure url="https://github.com/rockythink/Sniplet/releases/download/v0.9.1/Sniplet-0.9.1-universal.zip" type="application/octet-stream" sparkle:edSignature="9PFFGeDAkV2Oh6WXMt6gS7iU0jur5osl2H+sFkLrH6wu5xyqlnqdIqvOcJS5bhXdKVrfW39I5oQ8PhDCDrDaDQ==" length="3610123" />
     </item>
   </channel>
 </rss>
