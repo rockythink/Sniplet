@@ -6,7 +6,7 @@ import SwiftUI
 /// This adapts that handoff, not its recording/upload/global-monitor features.
 /// Source: realskyrin/CapCap EditWindowController.swift 315–502 (MIT),
 /// commit 7dd035225eaa41e6da8a5156556a8c4dd7bd028b.
-@MainActor final class InlineEditorController: NSObject, NSWindowDelegate {
+@MainActor final class InlineEditorController: NSObject, NSWindowDelegate, NSPopoverDelegate {
     let session: EditorSession
     private let preferences: AppPreferences
     var onClose: (() -> Void)?
@@ -16,6 +16,10 @@ import SwiftUI
     var onRecordRegion: ((CGRect) -> Void)?
     /// Same: the region and the chosen delay for capturing it again.
     var onDelayRegion: ((CGRect, Int) -> Void)?
+    /// Fresh captures only: a one-time hint beside the toolbar until dismissed.
+    var tip: EditorTipRequest?
+    /// Fresh captures only: features used here, so their hints are skipped later.
+    var onDiscovered: ((EditorTip) -> Void)?
     var window: NSWindow? { host.panel }
     private let host: InlineCaptureHost
     private var sourceRect: CGRect
@@ -27,6 +31,10 @@ import SwiftUI
     private var primaryBar: InlineToolbarContainer?
     private var sideBar: InlineToolbarContainer?
     private var chrome: InlineSelectionChrome?
+    private var tipBar: InlineToolbarContainer?
+    private var tipReported = false
+    private var shortcutPopover: NSPopover?
+    private var toolbarBelowCapture = true
     private var selectionDragView: CaptureSelectionDragView?
     private var hasAdjustedSelectionPresentation = false
     private var selectionScreenIsUnchanged = true
@@ -101,6 +109,13 @@ import SwiftUI
             root.addSubview(chrome)
             if let primaryBar { root.addSubview(primaryBar) }
             if let sideBar { root.addSubview(sideBar) }
+            if let tip {
+                let bar = InlineToolbarContainer(content: NSHostingView(rootView: EditorTipView(
+                    message: tip.message, dismiss: { [weak self] in self?.dismissTip() })), horizontal: true)
+                bar.isHidden = true
+                tipBar = bar
+                root.addSubview(bar)
+            }
         }
         refreshSessionState()
         panel.makeFirstResponder((scrollView?.canvas as NSView?) ?? root)
@@ -125,6 +140,8 @@ import SwiftUI
                 let scroll = AnnotationScrollView(editor: editor)
                 scroll.canvas.onConfirmScreenshot = { [weak self] in self?.copyImage() }
                 scroll.canvas.onCancelScreenshot = { [weak self] in self?.cancelCapture() }
+                scroll.canvas.onToolShortcut = { [weak self] in self?.discovered(.tools) }
+                scroll.canvas.onShowShortcuts = { [weak self] in self?.toggleShortcutSheet() }
                 scroll.canvas.onSelectionMoveError = { [weak self] message in self?.showSelectionMoveError(message) }
                 root.addSubview(scroll, positioned: .below, relativeTo: chrome)
                 scrollView = scroll
@@ -133,6 +150,7 @@ import SwiftUI
                 NotificationCenter.default.addObserver(self, selector: #selector(canvasViewportChanged(_:)),
                     name: NSView.boundsDidChangeNotification, object: scroll.contentView)
                 editor.captureStyleHandler = { [weak self] _ in
+                    self?.discovered(.style)
                     self?.layoutInlineViews()
                 }
                 editor.regionSelectionHandler = { [weak self] region in
@@ -187,6 +205,8 @@ import SwiftUI
             }
             scrollView?.canvas.isEditable = !session.isBusy
         } else {
+            dismissTip()
+            shortcutPopover?.close()
             host.setSnapshot(nil)
             selectionDragView?.removeFromSuperview()
             selectionDragView = nil
@@ -242,6 +262,20 @@ import SwiftUI
             sideSize: sideBar?.preferredSize ?? CGSize(width: 44, height: 300))
         if primaryBar?.frame != frames.primary { primaryBar?.frame = frames.primary }
         if sideBar?.frame != frames.side { sideBar?.frame = frames.side }
+        toolbarBelowCapture = frames.primary.midY < reference.midY
+        if let tipBar {
+            if remeasureToolbars { tipBar.measurePreferredSize() }
+            let frame = EditorTipPlacement.frame(size: tipBar.preferredSize, primary: frames.primary,
+                                                 side: frames.side, capture: reference, in: safe)
+            tipBar.isHidden = frame == nil
+            if let frame {
+                if tipBar.frame != frame { tipBar.frame = frame }
+                if !tipReported, let tip {
+                    tipReported = true
+                    tip.onShown()
+                }
+            }
+        }
         if chrome?.frame != root.bounds { chrome?.frame = root.bounds }
         if selectionDragView?.frame != root.bounds { selectionDragView?.frame = root.bounds }
         updateSelectionChrome()
@@ -313,17 +347,21 @@ import SwiftUI
 
     /// Discards the screenshot (asking first if it has marks) and hands its area to recording.
     private func recordRegion() {
+        let discovered = onDiscovered
         guard let handler = onRecordRegion,
               let rect = releaseRegion(title: "改为录屏会丢弃这张截图", confirm: "丢弃并录屏",
                                        detail: "已经画上的标注不会保留。录屏会录制同一块区域。") else { return }
+        discovered?(.areaActions)
         handler(rect)
     }
 
     /// Discards the screenshot and captures the same region again after a countdown.
     private func delayRegion(_ seconds: Int) {
+        let discovered = onDiscovered
         guard let handler = onDelayRegion,
               let rect = releaseRegion(title: "延迟截图会丢弃当前的标注", confirm: "丢弃并开始倒计时",
                                        detail: "已经画上的标注不会保留。\(seconds) 秒后会重新截取同一块区域。") else { return }
+        discovered?(.areaActions)
         handler(rect, seconds)
     }
 
@@ -340,6 +378,40 @@ import SwiftUI
         let rect = sourceRect
         session.discard()
         return rect
+    }
+
+    /// Using what the current tip points at also retires it.
+    private func discovered(_ found: EditorTip) {
+        onDiscovered?(found)
+        if tip?.tip == found { dismissTip() }
+    }
+
+    private func dismissTip() {
+        tipBar?.removeFromSuperview()
+        tipBar = nil
+        tip = nil
+    }
+
+    private func toggleShortcutSheet() {
+        if let shortcutPopover, shortcutPopover.isShown {
+            shortcutPopover.performClose(nil)
+            return
+        }
+        guard let primaryBar, primaryBar.window != nil else { return }
+        let content = NSHostingController(rootView: EditorShortcutSheet())
+        content.sizingOptions = .preferredContentSize
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentViewController = content
+        popover.delegate = self
+        // Open away from the capture, like the tip.
+        popover.show(relativeTo: primaryBar.bounds, of: primaryBar, preferredEdge: toolbarBelowCapture ? .minY : .maxY)
+        shortcutPopover = popover
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        shortcutPopover = nil
+        if !isClosing { focusCanvas() }
     }
 
     func finish() {
@@ -375,6 +447,11 @@ import SwiftUI
         finalImageView = nil
         primaryBar = nil
         sideBar = nil
+        shortcutPopover?.close()
+        shortcutPopover = nil
+        tipBar = nil
+        tip = nil
+        onDiscovered = nil
         chrome = nil
         host.close()
         onRegionChange = nil

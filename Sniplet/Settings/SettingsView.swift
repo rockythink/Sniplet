@@ -28,7 +28,7 @@ struct SettingsView: View {
         @Bindable var preferences = coordinator.preferences
         return Form {
             Section {
-                caption("按 \(regionShortcut) 拖动选区域，或单击选窗口；原位标注后复制、保存、钉住或拖出。全部在本机处理。")
+                caption("按 \(regionShortcut) 拖动选区域，单击选窗口，或在空白处单击截整屏；原位标注后复制、保存、钉住或拖出。全部在本机处理。")
             }
             Section("屏幕录制权限") {
                 LabeledContent("当前状态", value: coordinator.permissions.isAvailable ? "可用" : "尚不可用")
@@ -40,6 +40,20 @@ struct SettingsView: View {
                 if coordinator.permissions.settingsOpenFailed {
                     Text("无法打开系统设置，请从 Apple 菜单手动打开。")
                         .foregroundStyle(.red)
+                }
+            }
+            Section("启动") {
+                Toggle(isOn: Binding(get: { coordinator.launchAtLogin.isEnabled },
+                                     set: coordinator.launchAtLogin.setEnabled)) {
+                    Text("登录时打开 Sniplet")
+                    Text("开机或登录后自动待在菜单栏，随时可以截图。")
+                }
+                if coordinator.launchAtLogin.requiresApproval {
+                    Button("在系统设置中允许…", action: coordinator.launchAtLogin.openSystemSettings)
+                    caption("系统设置 → 通用 → 登录项中允许 Sniplet 后才会生效。")
+                }
+                if let error = coordinator.launchAtLogin.error {
+                    Text(error).font(.callout).foregroundStyle(.red)
                 }
             }
             Section("功能开关") {
@@ -85,8 +99,21 @@ struct SettingsView: View {
                 }
                 caption("编辑截图时 ⌘S 直接存到这个文件夹、不弹窗，同名时自动加序号；⇧⌘S 另存为。")
             }
+            Section("帮助") {
+                Toggle(isOn: Bindable(coordinator.editorTips).isEnabled) {
+                    Text("前几次截图时显示使用提示")
+                    Text("工具条旁一条简短提示，每条只出现一次。截图时按 ? 随时查看快捷键。")
+                }
+                HStack {
+                    Button("打开使用指南…") { coordinator.showGuide() }
+                    Button("重新显示欢迎引导…") { coordinator.showWelcome() }
+                    Button("重新显示使用提示", action: coordinator.editorTips.reset)
+                        .disabled(coordinator.editorTips.isEnabled && coordinator.editorTips.ledger == EditorTipLedger())
+                }
+            }
         }
         .formStyle(.grouped)
+        .onAppear(perform: coordinator.launchAtLogin.refresh)
     }
 
     private var shortcuts: some View {

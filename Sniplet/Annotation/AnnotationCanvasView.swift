@@ -106,6 +106,10 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
     let editor: AnnotationEditor
     var onConfirmScreenshot: (() -> Void)?
     var onCancelScreenshot: (() -> Void)?
+    /// A single letter key switched the tool.
+    var onToolShortcut: (() -> Void)?
+    /// `?` asks for the shortcut sheet.
+    var onShowShortcuts: (() -> Void)?
     /// Empty select-mode drags move the captured region (and re-crop the frozen source).
     var allowsCaptureSelectionMove = true
     /// Parent surfaces crop failures; the gesture itself always restores first.
@@ -183,6 +187,8 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
         editor.invalidateHandler = nil
         onConfirmScreenshot = nil
         onCancelScreenshot = nil
+        onToolShortcut = nil
+        onShowShortcuts = nil
         onSelectionMoveError = nil
         resetGesture()
         if let cursorTracking { removeTrackingArea(cursorTracking) }
@@ -574,6 +580,10 @@ final class AnnotationCanvasView: NSView, NSTextViewDelegate {
                let key = event.charactersIgnoringModifiers, let tool = AnnotationTool.forShortcut(key) {
                 editor.selectedTool = tool
                 restoreHoverCursor()
+                onToolShortcut?()
+            } else if event.modifierFlags.intersection([.command, .option, .control]).isEmpty,
+                      event.characters == "?", let onShowShortcuts {
+                onShowShortcuts()
             } else {
                 super.keyDown(with: event)
             }

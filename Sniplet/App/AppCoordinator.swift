@@ -31,6 +31,8 @@ final class AppCoordinator {
     private let toast = StatusPillPanel()
     let quickSaveFolder = QuickSaveFolder()
     let updater = SoftwareUpdater()
+    let launchAtLogin = LaunchAtLogin()
+    let editorTips = EditorTips()
     private let recordingEngine = ScreenRecordingEngine()
     private let recordingBorder = RecordingBorderPanel()
     private var recording: (url: URL, startedAt: Date, displayID: CGDirectDisplayID)?
@@ -39,6 +41,8 @@ final class AppCoordinator {
     private var recordingResults: [RecordingResultPanel] = []
     private var editor: InlineEditorController?
     private var historyWindow: HistoryWindowController?
+    private var welcomeWindow: WelcomeWindowController?
+    private var guideWindow: GuideWindowController?
     private var recoveryPanels: [UUID: InlineEditorController] = [:]
     private var captureTask: Task<Void, Never>?
     private var historyInitializationTask: Task<Void, Never>?
@@ -99,6 +103,7 @@ final class AppCoordinator {
             return
         }
         guard canCapture else { return }
+        if mode == .previousRegion { editorTips.discovered(.repeatAndHistory) }
         // A remembered region on a display that is gone or rearranged falls back to a fresh selection.
         if mode == .previousRegion, let rect = preferences.lastCaptureRegion?.rect,
            let screen = NSScreen.screens.first(where: { $0.frame.insetBy(dx: -1, dy: -1).contains(rect) }),
@@ -444,6 +449,14 @@ final class AppCoordinator {
             panel.onDelayRegion = { [weak self] rect, seconds in
                 DispatchQueue.main.async { [weak self] in self?.recaptureRegion(rect, after: seconds) }
             }
+            panel.onDiscovered = { [weak self] tip in self?.editorTips.discovered(tip) }
+            if let tip = editorTips.next {
+                let message = tip.message(
+                    regionShortcut: shortcuts.isBound(.region) ? shortcuts.description(for: .region) : nil,
+                    previousRegionShortcut: shortcuts.isBound(.previousRegion) ? shortcuts.description(for: .previousRegion) : nil)
+                panel.tip = EditorTipRequest(tip: tip, message: message,
+                                             onShown: { [weak self] in self?.editorTips.markShown(tip) })
+            }
         }
         if recovery { recoveryPanels[session.id] = panel }
         else { editor = panel }
@@ -506,12 +519,58 @@ final class AppCoordinator {
     }
 
     func showHistory() {
+        editorTips.discovered(.repeatAndHistory)
         if historyWindow == nil {
             let controller = HistoryWindowController(coordinator: self)
             controller.onClose = { [weak self] in self?.historyWindow = nil }
             historyWindow = controller
         }
         historyWindow?.present()
+    }
+
+    func showWelcome(step: WelcomeStep = .menuBar) {
+        // Steps keep their own state, so reopening always starts a fresh window.
+        welcomeWindow?.close()
+        let controller = WelcomeWindowController(coordinator: self, step: step)
+        controller.onClose = { [weak self, weak controller] in
+            if self?.welcomeWindow === controller { self?.welcomeWindow = nil }
+        }
+        welcomeWindow = controller
+        controller.present()
+    }
+
+    func showGuide(section: GuideSection? = nil) {
+        if let guideWindow {
+            guideWindow.present(section: section)
+            return
+        }
+        let controller = GuideWindowController(coordinator: self, section: section ?? .start)
+        controller.onClose = { [weak self] in self?.guideWindow = nil }
+        guideWindow = controller
+        controller.present()
+    }
+
+    /// The guide's text follows the shortcuts the user has actually bound.
+    var guideContent: GuideContent {
+        GuideContent(captureShortcuts: Dictionary(uniqueKeysWithValues: GlobalHotKeyManager.modes.compactMap { mode in
+            shortcuts.isBound(mode) ? (mode, shortcuts.description(for: mode)) : nil
+        }))
+    }
+
+    /// Quits and reopens Sniplet so a fresh Screen Recording grant takes effect.
+    func relaunch(resumingWelcomeAt step: WelcomeStep?) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        configuration.arguments = RelaunchHandoff.arguments(waitingFor: ProcessInfo.processInfo.processIdentifier)
+        if let step { UserDefaults.standard.set(step.rawValue, forKey: WelcomeStep.resumeKey) }
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { [weak self] _, error in
+            let message = error?.localizedDescription
+            Task { @MainActor in
+                guard let message else { NSApp.terminate(nil); return }
+                UserDefaults.standard.removeObject(forKey: WelcomeStep.resumeKey)
+                self?.showError("无法重新打开 Sniplet：\(message)。请从菜单栏退出后手动打开。")
+            }
+        }
     }
 
     func retryHistoryCleanup() {
@@ -679,10 +738,14 @@ final class AppCoordinator {
 
     private func showFirstLaunchGuidance() {
         let defaults = UserDefaults.standard
+        if let step = WelcomeStep.takeResume(from: defaults) {
+            showWelcome(step: step)
+            return
+        }
         switch LaunchGuidance.next(in: defaults) {
         case .none: return
         case .whatsNew: showWhatsNew()
-        case .introduction: showIntroduction()
+        case .introduction: showWelcome()
         }
         LaunchGuidance.markShown(in: defaults)
     }
@@ -692,23 +755,8 @@ final class AppCoordinator {
         alert.messageText = LaunchGuidance.whatsNewTitle
         alert.informativeText = LaunchGuidance.whatsNewText
         alert.addButton(withTitle: "好的")
-        alert.runForSniplet()
-    }
-
-    private func showIntroduction() {
-        let alert = NSAlert()
-        alert.messageText = "Sniplet 已在菜单栏就绪"
-        alert.informativeText = """
-            从菜单栏或按 ⇧⌘A 开始截图，在选区原位标注，再复制、保存、钉图或拖出。⌃⌥⌘4 可直接重复上次的区域。选好区域后，工具栏里还能改为录屏，或延迟几秒重截。
-
-            · 单键切换工具：V 选择、A 箭头、R 矩形、P 画笔、T 文字、N 序号、M 马赛克、H 高亮
-            · 绘图工具下第一次 Esc 回到选择，再按 Esc 丢弃截图
-            · 钉图可拖动、捏合缩放，Esc 关闭
-
-            ⇧⌘A 会覆盖 Finder 的「前往应用程序」，可在设置 → 快捷键中修改。只有主动截图时才请求屏幕录制权限，图像和文字仅在本机处理。
-            """
-        alert.addButton(withTitle: "知道了")
-        alert.runForSniplet()
+        alert.addButton(withTitle: "打开使用指南")
+        if alert.runForSniplet() == .alertSecondButtonReturn { showGuide() }
     }
 
     private func showError(_ message: String) {

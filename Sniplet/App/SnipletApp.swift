@@ -56,6 +56,7 @@ private struct SnipletMenu: View {
         }
         Divider()
         Button("截图历史…", action: coordinator.showHistory)
+        Button("使用指南…") { coordinator.showGuide() }
         if coordinator.pinCount > 0 {
             Button("关闭所有钉图（\(coordinator.pinCount)）", action: coordinator.closeAllPins)
         }
