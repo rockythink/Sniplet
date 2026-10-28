@@ -144,20 +144,20 @@ p {
 .brand-period {
   color: var(--accent);
 }
-nav {
+.site-header nav {
   display: flex;
   align-items: center;
   gap: 30px;
   margin-left: auto;
 }
-nav a {
+.site-header nav a {
   font-size: 12px;
   font-weight: 550;
   padding-block: 12px;
   color: #4c5b52;
   white-space: nowrap;
 }
-nav a:hover {
+.site-header nav a:hover {
   color: var(--accent);
 }
 .nav-source {
@@ -1038,7 +1038,7 @@ kbd {
   .site-header {
     gap: 23px;
   }
-  nav {
+  .site-header nav {
     gap: 20px;
   }
   .hero {
@@ -1099,7 +1099,7 @@ kbd {
     width: 32px;
     height: 32px;
   }
-  nav {
+  .site-header nav {
     gap: 17px;
   }
   .nav-download {
@@ -1371,7 +1371,7 @@ kbd {
   .nav-download {
     display: none;
   }
-  nav {
+  .site-header nav {
     width: 100%;
     flex-direction: column;
     align-items: stretch;
@@ -1382,17 +1382,17 @@ kbd {
     border: 1px solid var(--line);
     border-radius: 10px;
   }
-  .js nav {
+  .js .site-header nav {
     display: none;
     position: absolute;
     top: 70px;
     left: 0;
     box-shadow: 0 14px 25px #20382a10;
   }
-  .js nav.is-open {
+  .js .site-header nav.is-open {
     display: flex;
   }
-  .js nav a {
+  .js .site-header nav a {
     font-size: 13px;
     padding: 13px 0;
   }
@@ -1889,4 +1889,160 @@ kbd {
     transition: none !important;
     animation: none !important;
   }
+}
+.guide {
+  padding-bottom: 100px;
+}
+.guide-intro {
+  padding-bottom: 56px;
+  border-bottom: 1px solid var(--line);
+}
+.guide-intro h1 {
+  font-size: clamp(36px, 4vw, 52px);
+  line-height: 1.3;
+  margin: 18px 0 14px;
+}
+.guide-intro p:last-child {
+  max-width: 640px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.guide-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 80px;
+  padding-top: 56px;
+}
+.guide-toc {
+  position: sticky;
+  top: 30px;
+  align-self: start;
+}
+.guide-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.guide-toc a {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 0;
+}
+.guide-toc a:hover {
+  color: var(--accent);
+}
+.guide-body {
+  max-width: 720px;
+}
+.guide-body section {
+  padding-bottom: 52px;
+}
+.guide-body section + section {
+  padding-top: 52px;
+  border-top: 1px solid var(--line);
+}
+.guide-body h2 {
+  font-size: 26px;
+  line-height: 1.5;
+  letter-spacing: -0.03em;
+  margin-bottom: 18px;
+}
+.guide-body h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.guide-body p {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.guide-steps {
+  margin: 0 0 18px;
+  padding-left: 1.4em;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.9;
+}
+.guide-steps li::marker {
+  color: var(--accent);
+  font-weight: 600;
+}
+.guide-shortcuts {
+  margin-bottom: 26px;
+}
+.guide-shortcuts table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.guide-shortcuts th {
+  text-align: left;
+  font-weight: 400;
+  white-space: nowrap;
+  vertical-align: top;
+  width: 1%;
+  padding: 8px 20px 8px 0;
+}
+.guide-shortcuts td {
+  padding: 8px 0;
+  line-height: 1.8;
+}
+.guide-shortcuts tr + tr th,
+.guide-shortcuts tr + tr td {
+  border-top: 1px solid var(--line);
+}
+.guide kbd {
+  width: auto;
+  min-width: 26px;
+  height: auto;
+  padding: 2px 8px;
+  border-bottom-width: 2px;
+  font-family: var(--font);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.guide-question + .guide-question {
+  margin-top: 24px;
+}
+.guide-question p {
+  margin-bottom: 0;
+}
+.guide-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  padding-top: 26px;
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 850px) {
+  .guide-layout {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+  .guide-toc {
+    position: static;
+  }
+  .guide-toc ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 20px;
+  }
+}
+@media (max-width: 640px) {
+  .guide-shortcuts th {
+    white-space: normal;
+    padding-right: 12px;
+  }
+}
+.inline-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }

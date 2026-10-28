@@ -1,0 +1,37 @@
+---
+import Icon from './Icon.astro';
+import release from '../data/release.json';
+
+interface Props {
+  /** In-page anchors on the homepage; absolute homepage anchors elsewhere. */
+  home?: boolean;
+}
+const { home = false } = Astro.props;
+const base = home ? '' : '/';
+const onGuide = Astro.url.pathname.startsWith('/guide');
+---
+<header class="site-header wrap">
+  <a class="brand" href="/" aria-label="Sniplet 首页"><img src="/icon.png" alt="" width="36" height="36"/><span>Sniplet<span class="brand-period">.</span></span></a>
+  <button class="nav-toggle" aria-label="打开导航" aria-expanded="false" aria-controls="navigation"><Icon name="menu"/></button>
+  <nav id="navigation" aria-label="主导航">
+    <a href={`${base}#features`}>小而够用</a><a href={`${base}#start`}>开始使用</a><a href="/guide/" aria-current={onGuide ? 'page' : undefined}>使用指南</a><a href={`${base}#faq`}>常见问题</a>
+    <a class="nav-source" href={release.repository}>GitHub <Icon name="arrow" size={14}/></a>
+  </nav>
+  <a class="nav-download" href={release.download}>下载 macOS 版 <Icon name="down" size={15}/></a>
+</header>
+<script>
+  document.documentElement.classList.add('js');
+  const toggle = document.querySelector<HTMLButtonElement>('.nav-toggle');
+  const navigation = document.querySelector<HTMLElement>('#navigation');
+  const closeNavigation = () => { toggle?.setAttribute('aria-expanded', 'false'); toggle?.setAttribute('aria-label', '打开导航'); navigation?.classList.remove('is-open'); };
+  toggle?.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? '关闭导航' : '打开导航');
+    navigation?.classList.toggle('is-open', open);
+  });
+  navigation?.querySelectorAll('a').forEach(link => link.addEventListener('click', closeNavigation));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') { closeNavigation(); toggle.focus(); }
+  });
+</script>
