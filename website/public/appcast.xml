@@ -5,13 +5,13 @@
     <link>https://sniplet.elazer.wang/appcast.xml</link>
     <language>zh-CN</language>
     <item>
-      <title>Sniplet 0.9.1</title>
-      <pubDate>Sun, 25 Oct 2026 03:48:38 GMT</pubDate>
-      <sparkle:version>16</sparkle:version>
-      <sparkle:shortVersionString>0.9.1</sparkle:shortVersionString>
+      <title>Sniplet 0.10.0</title>
+      <pubDate>Wed, 28 Oct 2026 05:43:11 GMT</pubDate>
+      <sparkle:version>17</sparkle:version>
+      <sparkle:shortVersionString>0.10.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<ul><li>截图时在桌面、菜单栏或 Dock 等空白处单击，即可截取整个屏幕。</li><ul><li>指针停在空白处时整屏高亮并显示像素尺寸，单击后照常在原处标注、拖边调整选区。</li><li>悬停窗口单击截窗口、拖动截区域不变；窗口模式（⌃⌥⌘5）仍只选窗口，整屏入口 ⌃⌥⌘3 也保留。</li></ul><li>0.9.0 用户可以在菜单栏「检查更新…」直接更新到这一版。</li></ul>]]></description>
-      <enclosure url="https://github.com/rockythink/Sniplet/releases/download/v0.9.1/Sniplet-0.9.1-universal.zip" type="application/octet-stream" sparkle:edSignature="9PFFGeDAkV2Oh6WXMt6gS7iU0jur5osl2H+sFkLrH6wu5xyqlnqdIqvOcJS5bhXdKVrfW39I5oQ8PhDCDrDaDQ==" length="3610123" />
+      <description><![CDATA[<ul><li>第一次打开改为欢迎窗口，三步走完：在菜单栏找到 Sniplet、允许屏幕录制、设好快捷键并试截一张。</li><ul><li>授权后权限没生效时，点「重新打开 Sniplet」，会回到这一步继续。</li><li>可以顺手勾选「登录时打开 Sniplet」，默认不开。</li></ul><li>新的使用指南：菜单栏「使用指南…」，按主题说明截图、标注、输出、录屏与延迟截图、钉图、历史，附快捷键一览和常见问题，显示的是你自己设置的快捷键。菜单栏图标被挡住时，再打开一次 Sniplet 也会打开指南。官网也有同一份：https://sniplet.elazer.wang/guide/</li><li>截图时按 ? 可以随时查看编辑快捷键。</li><li>前几次截图时，工具条旁会出现一条简短提示，每条只出现一次，用过的功能不再提示；提示贴着工具条，不会额外挡住截图内容。设置 → 通用 → 帮助里可以关闭或重新显示。</li><li>设置 → 通用新增「登录时打开 Sniplet」。</li><li>0.9.x 用户可以在菜单栏「检查更新…」直接更新到这一版。</li></ul>]]></description>
+      <enclosure url="https://github.com/rockythink/Sniplet/releases/download/v0.10.0/Sniplet-0.10.0-universal.zip" type="application/octet-stream" sparkle:edSignature="6DFdntknlmwkJvcXvXPZ42ybBi7QoaTWmA0WQVfL7YriTMtoP4atcfI5lz1cgJOX8RdjIHPiZWwbxnpHvCEKDQ==" length="3857698" />
     </item>
   </channel>
 </rss>
