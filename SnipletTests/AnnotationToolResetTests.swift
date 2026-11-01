@@ -59,6 +59,24 @@ import Testing
         #expect(!AnnotationGeometry.outlineHit(pen, at: CGPoint(x: 20, y: 0), tolerance: 2))
     }
 
+    @Test func styleRowFollowsTypingThenSelectionThenTool() throws {
+        let editor = AnnotationEditor(capture: try SessionTestSupport.capture())
+        #expect(editor.styleTarget == nil)
+        editor.selectedTool = .arrow
+        #expect(editor.styleTarget == .arrow)
+        // The selected mark is what a style change edits, whichever tool is active.
+        let counter = Annotation(payload: .counter(center: CGPoint(x: 8, y: 8)))
+        editor.insert(counter)
+        editor.selectedTool = .arrow
+        #expect(editor.styleTarget == .counter)
+        editor.isEditingText = true
+        #expect(editor.styleTarget == .text)
+        editor.isEditingText = false
+        editor.select(nil)
+        editor.selectedTool = .select
+        #expect(editor.styleTarget == nil)
+    }
+
     @Test func cancelledCreationKeepsTheDrawingTool() throws {
         let editor = AnnotationEditor(capture: try SessionTestSupport.capture())
         editor.selectedTool = .pen

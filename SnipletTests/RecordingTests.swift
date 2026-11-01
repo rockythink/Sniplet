@@ -39,6 +39,15 @@ struct RecordingGeometryTests {
     }
 }
 
+struct RecordingFileLifetimeTests {
+    @Test func aCopiedRecordingStaysWhileTheClipboardStillHoldsIt() {
+        #expect(RecordingFiles.keepsForClipboard(copiedAt: 41, current: 41))
+        // Anything copied since, or a drag that never touched the clipboard, lets it go.
+        #expect(!RecordingFiles.keepsForClipboard(copiedAt: 41, current: 42))
+        #expect(!RecordingFiles.keepsForClipboard(copiedAt: nil, current: 41))
+    }
+}
+
 struct RecordingStopButtonPlacementTests {
     private let visible = CGRect(x: 0, y: 0, width: 1440, height: 875)
     private let size = CGSize(width: 110, height: 36)

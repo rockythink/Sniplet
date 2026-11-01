@@ -1,32 +1,53 @@
 import SwiftUI
 
+/// Which side of the tool row the style row takes: the side the bar can grow toward,
+/// so the tools stay under the pointer while the style row comes and goes.
+@Observable final class InlineToolbarLayout {
+    var stylesOnTop = false
+}
+
 /// Native hosting subviews of the transferred selection surface, not a detached editor.
 /// Horizontal annotations + vertical actions follow CapCap ToolbarLayout/EditWindowController
 /// (MIT), commit 7dd035225eaa41e6da8a5156556a8c4dd7bd028b.
 struct InlineAnnotationToolbar: View {
     let session: EditorSession
+    let layout: InlineToolbarLayout
     let focusCanvas: () -> Void
-    /// The bar widens while text controls show, so the host re-measures it.
+    /// The bar grows and shrinks with the style row, so the host re-measures it.
     let stateChanged: () -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        Group {
             if let editor = session.editor {
-                AnnotationToolbar(editor: editor, focusCanvas: focusCanvas)
-                InlineBeautificationButton(editor: editor, saveDefault: { session.saveDefaultCaptureStyle() })
+                let showsStyles = AnnotationStyleBar.hasControls(for: editor.styleTarget)
+                VStack(alignment: .leading, spacing: InlineToolbarMetrics.spacing) {
+                    if showsStyles, layout.stylesOnTop { styleRow(editor); Divider() }
+                    HStack(spacing: InlineToolbarMetrics.spacing) {
+                        AnnotationToolbar(editor: editor, focusCanvas: focusCanvas)
+                        InlineToolbarSeparator()
+                        InlineBeautificationButton(editor: editor, saveDefault: { session.saveDefaultCaptureStyle() })
+                    }
+                    if showsStyles, !layout.stylesOnTop { Divider(); styleRow(editor) }
+                }
             } else {
                 Label("最终图像 · 只读", systemImage: "lock")
                     .font(.callout)
                     .padding(.horizontal, 10)
+                    .frame(height: InlineToolbarMetrics.button)
             }
         }
-        .buttonStyle(.borderless)
-        .font(.system(size: 16, weight: .medium))
-        .padding(.trailing, 8)
+        .buttonStyle(InlineToolbarButtonStyle())
+        .padding(InlineToolbarMetrics.inset)
         .disabled(session.isBusy)
         .fixedSize()
         .accessibilityLabel("截图标注工具")
-        .onChange(of: session.editor?.showsTextFormat) { _, _ in stateChanged() }
+        .onChange(of: session.editor?.styleTarget) { _, _ in stateChanged() }
+    }
+
+    private func styleRow(_ editor: AnnotationEditor) -> some View {
+        AnnotationStyleBar(editor: editor)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("标注样式")
     }
 }
 
@@ -41,7 +62,7 @@ private struct InlineBeautificationButton: View {
             editor.commitTextEditing()
             showsStyle.toggle()
         } label: {
-            Image(systemName: "sparkles").frame(width: 32, height: 32)
+            InlineToolbarIcon("sparkles")
         }
         .buttonStyle(InlineToolbarButtonStyle(isSelected: showsStyle || editor.document.captureStyle != .plain))
         .help("美化这张截图：选择预设，或调整圆角、阴影、边框和背景")
@@ -92,8 +113,52 @@ struct InlineActionToolbar: View {
     @State private var showsStatus = false
     @State private var showsOCR = false
 
+    /// Top to bottom: status, then redoing this capture differently, then outputs, then
+    /// discard and the primary copy. The bar hangs from the capture's bottom edge, so items
+    /// that come and go sit at the top and the copy button keeps its place in the corner.
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: InlineToolbarMetrics.spacing) {
+            // Only shown once there is something to report or reopen (errors, OCR result).
+            if hasStatus {
+                Button { showsStatus.toggle() } label: {
+                    InlineToolbarIcon(hasError ? "exclamationmark.triangle" : "text.bubble")
+                        .foregroundStyle(hasError ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
+                }
+                .help(hasError ? "查看输出错误与历史重试" : "查看文字识别结果")
+                .accessibilityLabel("截图状态与重试")
+            }
+            if session.editor != nil, recordRegion != nil || delayRegion != nil {
+                if let recordRegion {
+                    action("录制这块区域", symbol: "rectangle.dashed.badge.record",
+                           help: "放弃这张截图，改为录制同一块区域；点红框旁的「停止」、再按 ⇧⌘A 或从菜单栏停止", action: recordRegion)
+                        .disabled(session.isBusy)
+                }
+                if let delayRegion {
+                    Menu {
+                        ForEach(AppPreferences.captureDelayChoices, id: \.self) { seconds in
+                            Button("\(seconds) 秒后截取这块区域") { delayRegion(seconds) }
+                        }
+                    } label: {
+                        InlineToolbarIcon("timer")
+                    }
+                    .menuStyle(.button)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help("延迟截图：选框留在原处、中间倒计时，这期间可以照常操作其他 App；时间到自动截下这块区域")
+                    .accessibilityLabel("延迟截取这块区域")
+                    .disabled(session.isBusy)
+                }
+                InlineToolbarSeparator(inColumn: true)
+            }
+            if session.isOCREnabled {
+                action("复制文字", symbol: "text.viewfinder", help: "完全在本机识别并复制最终成图的文字") {
+                    showsOCR = true
+                    showsStatus = true
+                    session.copyRecognizedText()
+                }
+                .disabled(session.isRecognizing)
+            }
+            action("钉图", symbol: "pin", help: "钉住最终成图") { session.output(.pin) }
             // Save and drag-out share one button: a click saves, a drag carries the image out.
             // Intentionally never conditionally replace, disable or re-identify this
             // native view while async prepareDrag changes the session's busy state.
@@ -104,70 +169,27 @@ struct InlineActionToolbar: View {
                              onCancelled: session.dragCancelled,
                              onFailure: { capture, error in session.promiseFailed(capture, message: error) },
                              onPreparationFailure: session.dragPreparationFailed)
-                .frame(width: 32, height: 32)
-            action("钉图", symbol: "pin", help: "钉住最终成图") { session.output(.pin) }
-            if session.isOCREnabled {
-                action("复制文字", symbol: "text.viewfinder", help: "完全在本机识别并复制最终成图的文字") {
-                    showsOCR = true
-                    showsStatus = true
-                    session.copyRecognizedText()
-                }
-                .disabled(session.isRecognizing)
-            }
-            // Only shown once there is something to report or reopen (errors, OCR result).
-            if hasStatus {
-                Button { showsStatus.toggle() } label: {
-                    Image(systemName: hasError ? "exclamationmark.triangle" : "text.bubble")
-                        .foregroundStyle(hasError ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
-                        .frame(width: 32, height: 32)
-                }
-                .help(hasError ? "查看输出错误与历史重试" : "查看文字识别结果")
-                .accessibilityLabel("截图状态与重试")
-            }
-            if let recordRegion, session.editor != nil {
-                action("录制这块区域", symbol: "record.circle",
-                       help: "放弃这张截图，改为录制同一块区域；点红框旁的「停止」、再按 ⇧⌘A 或从菜单栏停止", action: recordRegion)
-                    .disabled(session.isBusy)
-            }
-            if let delayRegion, session.editor != nil {
-                Menu {
-                    ForEach(AppPreferences.captureDelayChoices, id: \.self) { seconds in
-                        Button("\(seconds) 秒后截取这块区域") { delayRegion(seconds) }
-                    }
-                } label: {
-                    Image(systemName: "timer").frame(width: 32, height: 32)
-                }
-                .menuStyle(.button)
-                .buttonStyle(.borderless)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help("延迟截图：选框留在原处、中间倒计时，这期间可以照常操作其他 App；时间到自动截下这块区域")
-                .accessibilityLabel("延迟截取这块区域")
+                .frame(width: InlineToolbarMetrics.button, height: InlineToolbarMetrics.button)
+            InlineToolbarSeparator(inColumn: true)
+            Button(action: cancel) { InlineToolbarIcon("xmark") }
+                .help("丢弃截图，不新增历史（Esc；绘图工具下第一次 Esc 先回到选择）")
+                .accessibilityLabel("丢弃截图")
                 .disabled(session.isBusy)
-            }
-            Divider().frame(width: 24)
-            Button(action: cancel) {
-                Image(systemName: "xmark").frame(width: 32, height: 32)
-            }
-            .help("丢弃截图，不新增历史（Esc；绘图工具下第一次 Esc 先回到选择）")
-            .accessibilityLabel("丢弃截图")
-            .disabled(session.isBusy)
             // Without history, finishing without copying equals discarding, so only offer it
             // when it keeps something. ⌘Return still reaches finish() and confirms the discard.
             if session.keepsHistory {
-                action("只存入历史", symbol: "tray.and.arrow.down",
+                action("只存入历史", symbol: "archivebox",
                        help: "不复制，只把最终图存入历史并关闭（⌘Return）", action: finish)
             }
             // Progress replaces the primary icon instead of reserving an empty row below it.
             Button { session.output(.copyImage) } label: {
-                Image(systemName: "checkmark")
+                InlineToolbarIcon("checkmark")
                     .opacity(session.isBusy ? 0 : 1)
                     .overlay {
                         if session.isBusy {
                             ProgressView().controlSize(.small).accessibilityLabel("正在输出")
                         }
                     }
-                    .frame(width: 32, height: 32)
             }
             .buttonStyle(InlineToolbarButtonStyle(isProminent: true))
             .help("复制最终图像并关闭（Return 或 ⌘C）")
@@ -175,8 +197,7 @@ struct InlineActionToolbar: View {
             .disabled(!session.canOutput || session.isBusy)
         }
         .buttonStyle(InlineToolbarButtonStyle())
-        .font(.system(size: 16, weight: .medium))
-        .padding(6)
+        .padding(InlineToolbarMetrics.inset)
         .fixedSize()
         .accessibilityLabel("截图输出操作")
         .popover(isPresented: $showsStatus, arrowEdge: .leading) {
@@ -199,7 +220,7 @@ struct InlineActionToolbar: View {
 
     private func action(_ title: String, symbol: String, help: String,
                         action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: symbol).frame(width: 32, height: 32) }
+        Button(action: action) { InlineToolbarIcon(symbol) }
             .help(help)
             .accessibilityLabel(title)
             .disabled(!session.canOutput || session.isBusy)

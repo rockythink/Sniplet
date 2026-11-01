@@ -76,6 +76,10 @@ final class AppCoordinator {
         RecordingFiles.removeLeftovers()
         updater.start()
         pins.onCountChange = { [weak self] count in self?.pinCount = count }
+        permissions.onRelaunch = { [weak self] in
+            guard let self else { return }
+            self.relaunch(resumingWelcomeAt: self.welcomeWindow == nil ? nil : .permission)
+        }
         permissions.refresh()
         shortcuts.registerSavedShortcuts()
         initializeHistory()
@@ -348,7 +352,15 @@ final class AppCoordinator {
     private func showRecordingResult(_ video: RecordedVideo, displayID: CGDirectDisplayID) {
         guard let screen = NSScreen.screens.first(where: { Self.displayID(for: $0) == displayID })
                 ?? NSScreen.main ?? NSScreen.screens.first else { return }
-        let panel = RecordingResultPanel(video: video)
+        let panel = RecordingResultPanel(video: video, services: RecordingOutputServices(
+            quickSave: { [weak self] source, askIfNeeded in
+                guard let self else { throw CancellationError() }
+                return try await self.files.quickSave(fileAt: source, folder: self.quickSaveFolder,
+                                                      askIfNeeded: askIfNeeded)
+            },
+            autoSaves: { [weak self] in self?.preferences.autoSaveCopies == true },
+            reportQuickSave: { [weak self] result in self?.reportQuickSave(result) },
+            flash: { [weak self] message in self?.toast.flash(message) }))
         panel.onError = { [weak self] message in self?.showError(message) }
         panel.onClose = { [weak self, weak panel] in self?.recordingResults.removeAll { $0 === panel } }
         recordingResults.append(panel)

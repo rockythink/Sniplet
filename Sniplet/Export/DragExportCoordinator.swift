@@ -259,12 +259,13 @@ final class DragExportCoordinator: NSView, NSDraggingSource {
     private var isDragging = false
     private var isHovered = false
     private var hoverTracking: NSTrackingArea?
-    private static let dragIcon = NSImage(systemSymbolName: "arrow.up.forward", accessibilityDescription: nil)?
-        .withSymbolConfiguration(.init(pointSize: 16, weight: .medium))
-    private static let saveIcon = NSImage(systemSymbolName: "square.and.arrow.down", accessibilityDescription: nil)?
-        .withSymbolConfiguration(.init(pointSize: 16, weight: .medium))
-    private static let preparingIcon = NSImage(systemSymbolName: "hourglass", accessibilityDescription: nil)?
-        .withSymbolConfiguration(.init(pointSize: 16, weight: .medium))
+    private static let dragIcon = NSImage(systemSymbolName: "arrow.up.forward", accessibilityDescription: nil)
+    private static let saveIcon = NSImage(systemSymbolName: "square.and.arrow.down", accessibilityDescription: nil)
+    private static let preparingIcon = NSImage(systemSymbolName: "hourglass", accessibilityDescription: nil)
+    /// The same glyph size as `InlineToolbarIcon`. Template symbols draw black unless tinted;
+    /// labelColor resolves per appearance at draw time.
+    private static let iconConfiguration = NSImage.SymbolConfiguration(pointSize: InlineToolbarMetrics.glyph, weight: .medium)
+        .applying(.init(paletteColors: [.labelColor]))
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -310,7 +311,8 @@ final class DragExportCoordinator: NSView, NSDraggingSource {
 
     required init?(coder: NSCoder) { nil }
     override var intrinsicContentSize: NSSize {
-        isSurface ? NSSize(width: NSView.noIntrinsicMetric, height: NSView.noIntrinsicMetric) : NSSize(width: 28, height: 28)
+        isSurface ? NSSize(width: NSView.noIntrinsicMetric, height: NSView.noIntrinsicMetric)
+            : NSSize(width: InlineToolbarMetrics.button, height: InlineToolbarMetrics.button)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -323,12 +325,14 @@ final class DragExportCoordinator: NSView, NSDraggingSource {
             NSColor.labelColor.withAlphaComponent(fill).setFill()
             NSBezierPath(roundedRect: bounds, xRadius: 5, yRadius: 5).fill()
         }
-        // Template symbols draw black unless tinted; labelColor resolves per appearance here.
         let resting = onClick == nil ? Self.dragIcon : Self.saveIcon
-        let icon = (preparation != nil ? Self.preparingIcon : resting)?
-            .withSymbolConfiguration(.init(paletteColors: [.labelColor]))
-        icon?.draw(in: CGRect(x: bounds.midX-8, y: bounds.midY-8, width: 16, height: 16),
-                   from: .zero, operation: .sourceOver, fraction: enabled ? 1 : 0.4)
+        guard let icon = (preparation != nil ? Self.preparingIcon : resting)?
+            .withSymbolConfiguration(Self.iconConfiguration) else { return }
+        // Natural symbol size, centred: squeezing it into a square shrinks tall glyphs.
+        let size = icon.size
+        icon.draw(in: CGRect(x: (bounds.midX-size.width/2).rounded(), y: (bounds.midY-size.height/2).rounded(),
+                             width: size.width, height: size.height),
+                  from: .zero, operation: .sourceOver, fraction: enabled ? 1 : 0.4)
     }
 
     override func viewDidChangeEffectiveAppearance() {

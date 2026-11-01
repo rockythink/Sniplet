@@ -9,6 +9,9 @@ final class CapturePermissionStore {
     /// The system prompt appears only once; later requests need System Settings.
     private(set) var hasRequestedAccess = UserDefaults.standard.bool(forKey: CapturePermissionStore.requestedKey)
     private static let requestedKey = "capture.hasRequestedAccess"
+    /// Set by the coordinator: relaunches Sniplet when a new grant has not taken effect yet.
+    @ObservationIgnored var onRelaunch: (() -> Void)?
+    @ObservationIgnored private var guide: ScreenRecordingGuidePanel?
 
     func refresh() {
         isAvailable = CGPreflightScreenCaptureAccess()
@@ -68,5 +71,16 @@ final class CapturePermissionStore {
         } else {
             settingsOpenFailed = !NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
         }
+        refresh()
+        if !settingsOpenFailed, !isAvailable { showGuide() }
+    }
+
+    /// Attaches the drag-to-allow guide to the Settings window that just opened.
+    private func showGuide() {
+        guard !AppRuntime.isUnitTesting else { return }
+        let guide = guide ?? ScreenRecordingGuidePanel(onGranted: { [weak self] in self?.refresh() },
+                                                       onRelaunch: { [weak self] in self?.onRelaunch?() })
+        self.guide = guide
+        guide.show()
     }
 }

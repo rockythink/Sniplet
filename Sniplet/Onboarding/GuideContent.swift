@@ -26,7 +26,7 @@ nonisolated enum GuideSection: String, CaseIterable, Identifiable, Sendable {
         case .capture: "rectangle.dashed"
         case .annotate: "pencil.tip.crop.circle"
         case .output: "square.and.arrow.up"
-        case .recordAndDelay: "record.circle"
+        case .recordAndDelay: "rectangle.dashed.badge.record"
         case .pin: "pin"
         case .history: "clock.arrow.circlepath"
         case .shortcuts: "keyboard"
@@ -80,7 +80,7 @@ nonisolated struct GuideContent: Sendable {
             [.text("先选好区域，再用右侧工具条："),
              .list(["录制这块区域：放弃这张截图，改为把同一块区域录成 MP4（只有画面，不录声音）。点红框旁的「停止」、再按 \(region)，或从菜单栏停止。",
                     "延迟截图：选 3、5 或 10 秒。选框留在原处、中间倒计时，这期间可以照常打开菜单和悬停提示，时间到先定格再截。再按 \(region) 或从菜单栏取消。"]),
-             .text("录好的视频可以预览、保存或复制；视频不进截图历史。")]
+             .text("录完右下角会出现一张卡片：单击画面播放，按住画面可以直接拖进聊天窗口或访达；Return 或 ⌘C 拷贝，⌘S 存进和截图相同的文件夹，Esc 丢弃。视频不进截图历史。")]
         case .pin:
             [.text("钉图把最终成图留在屏幕最上层，适合一边对照一边做事。"),
              .list(["拖动移动位置，双指捏合缩放。",

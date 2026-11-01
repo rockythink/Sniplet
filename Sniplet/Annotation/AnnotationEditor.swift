@@ -143,9 +143,12 @@ import Observation
         replace(AnnotationGeometry.translated(item, by: delta), actionName: "移动标注")
     }
 
-    /// Text size and weight sit in the toolbar while text is being placed, typed or selected.
-    var showsTextFormat: Bool {
-        selectedTool == .text || isEditingText || selectedAnnotation?.kind == .text
+    /// The kind of mark the style row edits: text being typed, else the selected mark,
+    /// else the active drawing tool's next mark. Nil while selecting with nothing selected.
+    var styleTarget: AnnotationKind? {
+        if isEditingText { return .text }
+        if let item = selectedAnnotation { return item.kind }
+        return selectedTool.kind
     }
 
     /// The style the toolbar edits: the selected mark's, otherwise the next mark's.

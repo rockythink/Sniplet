@@ -1,86 +1,242 @@
 import SwiftUI
 
+/// The tool row: selection, the drawing tools, then undo and redo.
 struct AnnotationToolbar: View {
     @Bindable var editor: AnnotationEditor
     var focusCanvas: (() -> Void)? = nil
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(AnnotationTool.allCases, id: \.self) { tool in
-                Button {
-                    editor.commitTextEditing()
-                    editor.selectedTool = tool
-                    focusCanvas?()
-                } label: {
-                    Image(systemName: tool.symbol)
-                        .font(.system(size: 16, weight: .medium))
-                        .symbolRenderingMode(.monochrome)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(InlineToolbarButtonStyle(isSelected: editor.selectedTool == tool))
-                .help("\(tool.label)（\(tool.shortcutKey.uppercased())）")
-                .accessibilityLabel(tool.label)
-                .accessibilityAddTraits(editor.selectedTool == tool ? [.isSelected] : [])
-            }
-            if editor.showsTextFormat {
-                Divider().frame(height: 24).padding(.horizontal, 4)
-                AnnotationTextFormatButtons(editor: editor)
-            }
-            Divider().frame(height: 24).padding(.horizontal, 4)
+        HStack(spacing: InlineToolbarMetrics.spacing) {
+            toolButton(.select)
+            InlineToolbarSeparator()
+            ForEach(AnnotationTool.allCases.filter { $0 != .select }, id: \.self) { toolButton($0) }
+            InlineToolbarSeparator()
             AnnotationUndoButtons(editor: editor, focusCanvas: focusCanvas)
-            AnnotationStyleButton(editor: editor)
         }
-        .buttonStyle(.borderless)
-        // The host bar continues with the same 4-point spacing, so no trailing inset here.
-        .padding(.leading, 8)
-        .padding(.vertical, 6)
+        .disabled(!editor.isValid || !editor.isInteractionEnabled)
+    }
+
+    private func toolButton(_ tool: AnnotationTool) -> some View {
+        Button {
+            editor.commitTextEditing()
+            editor.selectedTool = tool
+            focusCanvas?()
+        } label: {
+            InlineToolbarIcon(tool.symbol)
+                .symbolRenderingMode(.monochrome)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(InlineToolbarButtonStyle(isSelected: editor.selectedTool == tool))
+        .help("\(tool.label)（\(tool.shortcutKey.uppercased())）")
+        .accessibilityLabel(tool.label)
+        .accessibilityAddTraits(editor.selectedTool == tool ? [.isSelected] : [])
+    }
+}
+
+/// Style options for the mark being typed, the selected mark, or the active tool's next mark,
+/// laid out in a row instead of a popover: each option is one click and shows its current value.
+/// No commit here: style changes reach text that is still being typed.
+struct AnnotationStyleBar: View {
+    let editor: AnnotationEditor
+
+    /// Highlights keep a fixed translucent yellow, and selecting with nothing selected
+    /// edits nothing, so neither shows the row.
+    static func hasControls(for kind: AnnotationKind?) -> Bool {
+        guard let kind else { return false }
+        return kind != .highlight
+    }
+
+    var body: some View {
+        HStack(spacing: InlineToolbarMetrics.spacing) {
+            switch editor.styleTarget {
+            case .arrow, .rectangle, .pen:
+                AnnotationColorSwatches(editor: editor)
+                InlineToolbarSeparator()
+                AnnotationLineWidthButtons(editor: editor)
+            case .text:
+                AnnotationColorSwatches(editor: editor)
+                InlineToolbarSeparator()
+                AnnotationSizeStepper(editor: editor, subject: "文字", hasShortcuts: true)
+                InlineToolbarSeparator()
+                AnnotationTextToggles(editor: editor)
+            case .counter:
+                AnnotationColorSwatches(editor: editor)
+                InlineToolbarSeparator()
+                AnnotationSizeStepper(editor: editor, subject: "序号", hasShortcuts: false)
+            case .mosaic:
+                AnnotationMosaicButtons(editor: editor)
+            case .highlight, nil:
+                EmptyView()
+            }
+        }
+        .buttonStyle(InlineToolbarButtonStyle())
         .disabled(!editor.isValid || !editor.isInteractionEnabled)
     }
 }
 
+/// The palette itself, not a single swatch that opens one: a lone filled dot reads as a
+/// record button, and so does a ringed one. The current color is marked like a selected tool,
+/// plus a check.
+private struct AnnotationColorSwatches: View {
+    let editor: AnnotationEditor
+    static let palette: [(label: String, color: AnnotationColor)] = [
+        ("红", .red), ("黄", .yellow), ("绿", .green), ("蓝", .blue), ("黑", .black), ("白", .white)
+    ]
+
+    var body: some View {
+        let current = editor.activeStyle.color
+        HStack(spacing: InlineToolbarMetrics.spacing) {
+            ForEach(Self.palette.indices, id: \.self) { index in
+                let entry = Self.palette[index]
+                let selected = current == entry.color
+                Button {
+                    var style = editor.activeStyle
+                    style.color = entry.color
+                    editor.setStyle(style)
+                } label: {
+                    Circle()
+                        .fill(Color(cgColor: entry.color.cgColor))
+                        .overlay(Circle().strokeBorder(Color.primary.opacity(0.25), lineWidth: 1))
+                        .overlay {
+                            if selected {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 9, weight: .heavy))
+                                    .foregroundStyle(entry.color == .white || entry.color == .yellow ? .black : .white)
+                            }
+                        }
+                        .frame(width: 18, height: 18)
+                        .frame(width: InlineToolbarMetrics.button, height: InlineToolbarMetrics.button)
+                }
+                .buttonStyle(InlineToolbarButtonStyle(isSelected: selected))
+                .help(entry.label)
+                .accessibilityLabel("颜色：\(entry.label)")
+                .accessibilityAddTraits(selected ? [.isSelected] : [])
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("标注颜色")
+    }
+}
+
+/// Each option draws its own stroke weight.
+private struct AnnotationLineWidthButtons: View {
+    let editor: AnnotationEditor
+    private static let widths = [1, 2, 4, 8]
+
+    var body: some View {
+        let scale = editor.document.capture.sourceScale
+        let current = Int((editor.activeStyle.lineWidth / scale).rounded())
+        HStack(spacing: InlineToolbarMetrics.spacing) {
+            ForEach(Self.widths, id: \.self) { width in
+                Button {
+                    var style = editor.activeStyle
+                    style.lineWidth = CGFloat(width) * scale
+                    editor.setStyle(style)
+                } label: {
+                    Capsule()
+                        .fill(.primary)
+                        .frame(width: 16, height: CGFloat(width))
+                        .frame(width: InlineToolbarMetrics.button, height: InlineToolbarMetrics.button)
+                }
+                .buttonStyle(InlineToolbarButtonStyle(isSelected: current == width))
+                .help("描边 \(width) 点")
+                .accessibilityLabel("描边 \(width) 点")
+                .accessibilityAddTraits(current == width ? [.isSelected] : [])
+            }
+        }
+    }
+}
+
+/// Text size, or a counter badge's size, which follows the same size steps.
+private struct AnnotationSizeStepper: View {
+    let editor: AnnotationEditor
+    let subject: String
+    let hasShortcuts: Bool
+
+    var body: some View {
+        let points = editor.activeStyle.fontSize / editor.document.capture.sourceScale
+        let sizes = AnnotationTextLayout.pointSizes
+        HStack(spacing: InlineToolbarMetrics.spacing) {
+            Button { editor.stepFontSize(larger: false) } label: {
+                InlineToolbarIcon("textformat.size.smaller")
+            }
+            .disabled(points <= sizes[0] + 0.01)
+            .help("缩小\(subject)" + (hasShortcuts ? "（⌘−）" : ""))
+            .accessibilityLabel("缩小\(subject)")
+            Text("\(Int(points.rounded()))")
+                .font(.system(size: 13, weight: .medium).monospacedDigit())
+                .frame(minWidth: 24)
+                .help("\(subject)大小（点）")
+                .accessibilityLabel("\(subject)大小 \(Int(points.rounded())) 点")
+            Button { editor.stepFontSize(larger: true) } label: {
+                InlineToolbarIcon("textformat.size.larger")
+            }
+            .disabled(points >= sizes[sizes.count - 1] - 0.01)
+            .help("放大\(subject)" + (hasShortcuts ? "（⌘+）" : ""))
+            .accessibilityLabel("放大\(subject)")
+        }
+    }
+}
+
 /// Changes apply live to the text being typed (it stays open) or to the selected text mark.
-private struct AnnotationTextFormatButtons: View {
+private struct AnnotationTextToggles: View {
     let editor: AnnotationEditor
 
     var body: some View {
         let style = editor.activeStyle
-        let points = style.fontSize / editor.document.capture.sourceScale
-        let sizes = AnnotationTextLayout.pointSizes
-        HStack(spacing: 2) {
-            Button { editor.stepFontSize(larger: false) } label: {
-                Image(systemName: "textformat.size.smaller").frame(width: 32, height: 32)
-            }
-            .disabled(points <= sizes[0] + 0.01)
-            .help("缩小文字（⌘−）")
-            .accessibilityLabel("缩小文字")
-            Text("\(Int(points.rounded()))")
-                .font(.system(size: 13, weight: .medium).monospacedDigit())
-                .frame(minWidth: 24)
-                .help("文字大小（点）")
-                .accessibilityLabel("文字大小 \(Int(points.rounded())) 点")
-            Button { editor.stepFontSize(larger: true) } label: {
-                Image(systemName: "textformat.size.larger").frame(width: 32, height: 32)
-            }
-            .disabled(points >= sizes[sizes.count - 1] - 0.01)
-            .help("放大文字（⌘+）")
-            .accessibilityLabel("放大文字")
-            Button { editor.toggleBold() } label: {
-                Image(systemName: "bold").frame(width: 32, height: 32)
-            }
-            .buttonStyle(InlineToolbarButtonStyle(isSelected: style.isBold))
-            .help("加粗（⌘B）")
-            .accessibilityLabel("加粗")
-            .accessibilityAddTraits(style.isBold ? [.isSelected] : [])
-            Button { editor.toggleTextBackground() } label: {
-                Image(systemName: "character.textbox").frame(width: 32, height: 32)
-            }
-            .buttonStyle(InlineToolbarButtonStyle(isSelected: style.hasTextBackground))
-            .help("文字底色：用当前颜色垫一块底，文字自动变黑或白，在复杂背景上更清楚")
-            .accessibilityLabel("文字底色")
-            .accessibilityAddTraits(style.hasTextBackground ? [.isSelected] : [])
+        HStack(spacing: InlineToolbarMetrics.spacing) {
+            Button { editor.toggleBold() } label: { InlineToolbarIcon("bold") }
+                .buttonStyle(InlineToolbarButtonStyle(isSelected: style.isBold))
+                .help("加粗（⌘B）")
+                .accessibilityLabel("加粗")
+                .accessibilityAddTraits(style.isBold ? [.isSelected] : [])
+            Button { editor.toggleTextBackground() } label: { InlineToolbarIcon("character.textbox") }
+                .buttonStyle(InlineToolbarButtonStyle(isSelected: style.hasTextBackground))
+                .help("文字底色：用当前颜色垫一块底，文字自动变黑或白，在复杂背景上更清楚")
+                .accessibilityLabel("文字底色")
+                .accessibilityAddTraits(style.hasTextBackground ? [.isSelected] : [])
         }
-        .buttonStyle(InlineToolbarButtonStyle())
+    }
+}
+
+/// Each option previews its block size as a small checkerboard: fewer cells, coarser blocks.
+private struct AnnotationMosaicButtons: View {
+    let editor: AnnotationEditor
+    private static let sizes: [(pixels: Int, cells: Int, label: String)] = [(8, 6, "细"), (16, 4, "中"), (32, 2, "粗")]
+
+    var body: some View {
+        let current: Int = if let item = editor.selectedAnnotation, case let .mosaic(_, block) = item.payload {
+            Int(block)
+        } else {
+            Int(editor.mosaicBlockSize)
+        }
+        HStack(spacing: InlineToolbarMetrics.spacing) {
+            ForEach(Self.sizes, id: \.pixels) { size in
+                Button { editor.setMosaicBlockSize(CGFloat(size.pixels)) } label: {
+                    checkerboard(cells: size.cells)
+                        .frame(width: 16, height: 16)
+                        .clipShape(RoundedRectangle(cornerRadius: 2))
+                        .frame(width: InlineToolbarMetrics.button, height: InlineToolbarMetrics.button)
+                }
+                .buttonStyle(InlineToolbarButtonStyle(isSelected: current == size.pixels))
+                .help("马赛克块\(size.label)（\(size.pixels) 像素）")
+                .accessibilityLabel("马赛克块\(size.label)，\(size.pixels) 像素")
+                .accessibilityAddTraits(current == size.pixels ? [.isSelected] : [])
+            }
+        }
+    }
+
+    private func checkerboard(cells: Int) -> some View {
+        Canvas { context, canvasSize in
+            let cell = canvasSize.width / CGFloat(cells)
+            for row in 0..<cells {
+                for column in 0..<cells {
+                    let rect = CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
+                    let opacity = (row + column).isMultiple(of: 2) ? 0.85 : 0.3
+                    context.fill(Path(rect), with: .color(.primary.opacity(opacity)))
+                }
+            }
+        }
     }
 }
 
@@ -91,141 +247,20 @@ private struct AnnotationUndoButtons: View {
 
     var body: some View {
         let _ = editor.document.revision
-        HStack(spacing: 4) {
+        HStack(spacing: InlineToolbarMetrics.spacing) {
             Button { editor.undo(); focusCanvas?() } label: {
-                Image(systemName: "arrow.uturn.backward").frame(width: 32, height: 32)
+                InlineToolbarIcon("arrow.uturn.backward")
             }
             .disabled(!editor.undoManager.canUndo)
             .help("撤销（⌘Z）")
             .accessibilityLabel("撤销")
             Button { editor.redo(); focusCanvas?() } label: {
-                Image(systemName: "arrow.uturn.forward").frame(width: 32, height: 32)
+                InlineToolbarIcon("arrow.uturn.forward")
             }
             .disabled(!editor.undoManager.canRedo)
             .help("重做（⇧⌘Z）")
             .accessibilityLabel("重做")
         }
         .buttonStyle(InlineToolbarButtonStyle())
-    }
-}
-
-/// Color, stroke, text and mosaic settings in one popover. The button shows the color the
-/// next mark (or the selected mark) uses, and every option marks its current value.
-private struct AnnotationStyleButton: View {
-    let editor: AnnotationEditor
-    @State private var showsStyle = false
-    private static let palette: [(label: String, color: AnnotationColor)] = [
-        ("红", .red), ("黄", .yellow), ("绿", .green), ("蓝", .blue), ("黑", .black), ("白", .white)
-    ]
-
-    private var currentStyle: AnnotationStyle { editor.activeStyle }
-
-    private var currentMosaicBlock: CGFloat {
-        if let item = editor.selectedAnnotation, case let .mosaic(_, block) = item.payload { return block }
-        return editor.mosaicBlockSize
-    }
-
-    private var scale: CGFloat { editor.document.capture.sourceScale }
-
-    var body: some View {
-        // No commit here: style changes reach text that is still being typed.
-        Button {
-            showsStyle.toggle()
-        } label: {
-            swatch(currentStyle.color, diameter: 18)
-                .frame(width: 32, height: 32)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(InlineToolbarButtonStyle(isSelected: showsStyle))
-        .help("颜色、描边、文字大小与马赛克块大小")
-        .accessibilityLabel("标注样式")
-        .accessibilityValue(Self.palette.first { $0.color == currentStyle.color }?.label ?? "自定义颜色")
-        .popover(isPresented: $showsStyle) {
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 12) {
-                GridRow {
-                    Text("颜色")
-                    HStack(spacing: 8) {
-                        ForEach(Self.palette.indices, id: \.self) { index in
-                            colorButton(Self.palette[index].label, Self.palette[index].color)
-                        }
-                    }
-                }
-                GridRow {
-                    Text("描边")
-                    segmented("描边宽度", values: [1, 2, 4, 8], unit: "",
-                              current: Int((currentStyle.lineWidth / scale).rounded())) { width in
-                        var style = currentStyle
-                        style.lineWidth = CGFloat(width) * scale
-                        editor.setStyle(style)
-                    }
-                }
-                GridRow {
-                    Text("文字")
-                    segmented("文字大小", values: [12, 16, 24, 32, 48], unit: "",
-                              current: Int((currentStyle.fontSize / scale).rounded())) { size in
-                        var style = currentStyle
-                        style.fontSize = CGFloat(size) * scale
-                        editor.setStyle(style)
-                    }
-                }
-                GridRow {
-                    Text("马赛克")
-                    segmented("马赛克块大小", values: [8, 16, 32], unit: " px",
-                              current: Int(currentMosaicBlock)) { size in
-                        editor.setMosaicBlockSize(CGFloat(size))
-                    }
-                }
-                GridRow {
-                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
-                    Text("描边与文字以点为单位；高亮固定为半透明黄。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .controlSize(.small)
-            .padding(14)
-            .frame(width: 320)
-        }
-    }
-
-    private func swatch(_ color: AnnotationColor, diameter: CGFloat) -> some View {
-        Circle()
-            .fill(Color(cgColor: color.cgColor))
-            .overlay(Circle().strokeBorder(Color.primary.opacity(0.25), lineWidth: 1))
-            .frame(width: diameter, height: diameter)
-    }
-
-    private func colorButton(_ label: String, _ color: AnnotationColor) -> some View {
-        let selected = currentStyle.color == color
-        return Button {
-            var style = currentStyle
-            style.color = color
-            editor.setStyle(style)
-        } label: {
-            swatch(color, diameter: 22)
-                .overlay {
-                    if selected {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(color == .white || color == .yellow ? Color.black : Color.white)
-                    }
-                }
-                .padding(2)
-                .overlay(Circle().strokeBorder(Color.accentColor, lineWidth: selected ? 2 : 0))
-        }
-        .buttonStyle(.plain)
-        .help(label)
-        .accessibilityLabel(label)
-        .accessibilityAddTraits(selected ? [.isSelected] : [])
-    }
-
-    private func segmented(_ title: String, values: [Int], unit: String, current: Int,
-                           apply: @escaping (Int) -> Void) -> some View {
-        Picker(title, selection: Binding(get: { current }, set: { value in apply(value) })) {
-            ForEach(values, id: \.self) { Text("\($0)\(unit)").tag($0) }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .accessibilityLabel(title)
     }
 }

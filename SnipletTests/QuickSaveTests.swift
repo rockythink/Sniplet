@@ -25,6 +25,21 @@ struct QuickSaveNamingTests {
         #expect(try Data(contentsOf: first) == Data([1]))
     }
 
+    @Test func recordingsCopyInWithoutReplacingOrMovingTheSource() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("quick-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("source.mp4")
+        try Data([7, 8]).write(to: source)
+        let writer = ExportFileWriter()
+        let first = try await writer.copy(source, into: folder, preferredName: "Sniplet-x.mp4")
+        let second = try await writer.copy(source, into: folder, preferredName: "Sniplet-x.mp4")
+        #expect(first.lastPathComponent == "Sniplet-x.mp4" && second.lastPathComponent == "Sniplet-x 2.mp4")
+        #expect(try Data(contentsOf: second) == Data([7, 8]))
+        // The card keeps its temporary file until it closes.
+        #expect(FileManager.default.fileExists(atPath: source.path))
+    }
+
     @MainActor @Test func aChosenFolderIsRememberedAcrossLaunches() throws {
         let suite = "Sniplet.QuickSave.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))

@@ -56,7 +56,7 @@ import Testing
         let rect = AnnotationTextLayout.fittedRect("标注", style: style, origin: CGPoint(x: 10, y: 10), in: bounds)
         let text = Annotation(payload: .text(rect: rect, text: "标注"), style: style)
         editor.insert(text)
-        #expect(editor.showsTextFormat)
+        #expect(editor.styleTarget == .text)
         #expect(editor.stepFontSize(larger: true))
         let grown = try #require(editor.selectedAnnotation)
         #expect(abs(grown.style.fontSize - 20 * 2) < 0.001)  // 32 px at 2x is 16 pt; the next step is 20 pt

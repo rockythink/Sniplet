@@ -206,6 +206,22 @@ nonisolated enum RecordingFiles {
     static func discard(_ url: URL) {
         try? FileManager.default.removeItem(at: url)
     }
+
+    /// As long as drag-exported screenshots are kept for their receivers.
+    static let retention: Duration = .seconds(600)
+
+    /// A copied or dragged-out recording outlives its card: an upload or a later paste still
+    /// reads the file. It goes after `retention`, but not while the clipboard still holds the
+    /// copy (one change-count check per period, never the contents); a relaunch clears the rest.
+    @MainActor static func release(_ url: URL, clipboardChangeCount: Int?) {
+        Task { @MainActor in
+            repeat { try? await Task.sleep(for: retention) }
+            while keepsForClipboard(copiedAt: clipboardChangeCount, current: NSPasteboard.general.changeCount)
+            discard(url)
+        }
+    }
+
+    static func keepsForClipboard(copiedAt: Int?, current: Int) -> Bool { copiedAt == current }
 }
 
 /// A click-through outline around the area being recorded, plus a small stop button

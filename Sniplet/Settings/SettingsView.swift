@@ -94,10 +94,10 @@ struct SettingsView: View {
                         if await coordinator.quickSaveFolder.choose() != nil { preferences.autoSaveCopies = true }
                     }
                 })) {
-                    Text("完成截图时自动存一份")
-                    Text("复制、钉图或只存入历史时，同时把 PNG 存到上面的文件夹。")
+                    Text("完成截图或录屏时自动存一份")
+                    Text("截图复制、钉图或只存入历史时，录屏拷贝或拖出时，同时存一份到上面的文件夹。")
                 }
-                caption("编辑截图时 ⌘S 直接存到这个文件夹、不弹窗，同名时自动加序号；⇧⌘S 另存为。")
+                caption("截图和录屏按 ⌘S 都直接存到这个文件夹、不弹窗，同名时自动加序号；⇧⌘S 另存为。")
             }
             Section("帮助") {
                 Toggle(isOn: Bindable(coordinator.editorTips).isEnabled) {

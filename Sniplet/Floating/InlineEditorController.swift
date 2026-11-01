@@ -29,6 +29,7 @@ import SwiftUI
     private var scrollView: AnnotationScrollView?
     private var finalImageView: NSImageView?
     private var primaryBar: InlineToolbarContainer?
+    private let primaryLayout = InlineToolbarLayout()
     private var sideBar: InlineToolbarContainer?
     private var chrome: InlineSelectionChrome?
     private var tipBar: InlineToolbarContainer?
@@ -90,7 +91,7 @@ import SwiftUI
         if !isPresented {
             isPresented = true
             let primary = NSHostingView(rootView: InlineAnnotationToolbar(
-                session: session, focusCanvas: { [weak self] in self?.focusCanvas() },
+                session: session, layout: primaryLayout, focusCanvas: { [weak self] in self?.focusCanvas() },
                 stateChanged: { [weak self] in self?.scheduleSessionRefresh() }
             ))
             let actions = NSHostingView(rootView: InlineActionToolbar(
@@ -263,6 +264,10 @@ import SwiftUI
         if primaryBar?.frame != frames.primary { primaryBar?.frame = frames.primary }
         if sideBar?.frame != frames.side { sideBar?.frame = frames.side }
         toolbarBelowCapture = frames.primary.midY < reference.midY
+        // Only a bar hanging below the capture grows downward; above the capture or inside
+        // it, the bar's bottom edge stays put, so the style row goes on top.
+        let hangsBelow = abs(frames.primary.maxY - (reference.minY - EditorToolbarPlacement.edgeMargin)) < 0.5
+        if primaryLayout.stylesOnTop == hangsBelow { primaryLayout.stylesOnTop = !hangsBelow }
         if let tipBar {
             if remeasureToolbars { tipBar.measurePreferredSize() }
             let frame = EditorTipPlacement.frame(size: tipBar.preferredSize, primary: frames.primary,

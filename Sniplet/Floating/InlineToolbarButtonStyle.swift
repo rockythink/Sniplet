@@ -1,5 +1,41 @@
 import SwiftUI
 
+/// One target size, glyph size and gap for every control on both inline bars, so mixed
+/// buttons, menus and the AppKit drag handle line up on a single grid.
+enum InlineToolbarMetrics {
+    static let button: CGFloat = 32
+    static let glyph: CGFloat = 16
+    static let spacing: CGFloat = 4
+    /// Space around a bar's controls; both bars are `button + 2 * inset` thick.
+    static let inset: CGFloat = 6
+}
+
+/// A toolbar symbol at the shared glyph size, centred in the shared target.
+struct InlineToolbarIcon: View {
+    let symbol: String
+
+    init(_ symbol: String) { self.symbol = symbol }
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: InlineToolbarMetrics.glyph, weight: .medium))
+            .frame(width: InlineToolbarMetrics.button, height: InlineToolbarMetrics.button)
+    }
+}
+
+/// A hairline between groups: vertical in a row, horizontal in the side column.
+struct InlineToolbarSeparator: View {
+    var inColumn = false
+
+    var body: some View {
+        if inColumn {
+            Divider().frame(width: 20).padding(.vertical, 2)
+        } else {
+            Divider().frame(height: 20).padding(.horizontal, 2)
+        }
+    }
+}
+
 /// Stable pointer targets and immediate feedback without resizing the symbol on selection.
 struct InlineToolbarButtonStyle: ButtonStyle {
     var isSelected = false
@@ -19,7 +55,7 @@ struct InlineToolbarButtonStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
-                .frame(minWidth: 32, minHeight: 32)
+                .frame(minWidth: InlineToolbarMetrics.button, minHeight: InlineToolbarMetrics.button)
                 .foregroundStyle(isProminent ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
                 .contentShape(Rectangle())
                 .background(background, in: RoundedRectangle(cornerRadius: 5))
