@@ -5,13 +5,13 @@
     <link>https://sniplet.elazer.wang/appcast.xml</link>
     <language>zh-CN</language>
     <item>
-      <title>Sniplet 0.11.0</title>
-      <pubDate>Sun, 01 Nov 2026 19:29:03 GMT</pubDate>
-      <sparkle:version>18</sparkle:version>
-      <sparkle:shortVersionString>0.11.0</sparkle:shortVersionString>
+      <title>Sniplet 0.11.1</title>
+      <pubDate>Wed, 04 Nov 2026 16:40:15 GMT</pubDate>
+      <sparkle:version>19</sparkle:version>
+      <sparkle:shortVersionString>0.11.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<ul><li>截图工具条重新整理：所有按钮统一大小和间距；颜色、粗细、字号和马赛克块大小移到工具条下方，随当前工具或选中的标注出现，点一下就换，不用再开弹窗。</li><ul><li>选文字工具时，工具条不再左右跳动。</li><li>录制按钮换成「虚线框 + 录制点」，不再和颜色按钮混淆；右侧工具条按「重新截取 / 输出 / 完成」分组。</li></ul><li>授权屏幕录制更省事：Sniplet 打开系统设置时，设置窗口旁会出现一个小面板，把上面的 Sniplet 图标拖进列表即可，授权后自动收起。</li><li>录屏结束后的卡片和截图手感一致：</li><ul><li>Return 或 ⌘C 拷贝并关闭，⌘S 直接存进截图用的同一个文件夹（不弹窗，存好可以在访达中显示），⇧⌘S 另存为，Esc 丢弃。</li><li>单击画面播放，按住画面直接拖到聊天窗口或访达。</li><li>拷贝或拖出后，视频文件会再保留一段时间，粘贴或上传不会因为卡片关掉而失败。</li><li>「完成时自动存一份」现在也作用于录屏。</li></ul><li>0.10.x 用户可以在菜单栏「检查更新…」直接更新到这一版。</li></ul>]]></description>
-      <enclosure url="https://github.com/rockythink/Sniplet/releases/download/v0.11.0/Sniplet-0.11.0-universal.zip" type="application/octet-stream" sparkle:edSignature="63oMi5msU/3L6rEwkJrImcuwhaF05h8rO0SY/pnVEZGQMrth/5DJO1RHpCgWVgOsmu04vunPdkAuCtBSp4oXBQ==" length="4000703" />
+      <description><![CDATA[<ul><li>全屏的 App 现在也能顺手截：</li><ul><li>悬停正文选中正文，单击就截。截出来的画面和框选时看到的一样，不再缩小、右边多出一条空白（之前全屏 Chrome 会这样）。</li><li>悬停顶部地址栏那一行，选中整块屏幕。</li></ul><li>拖动框选时，靠近屏幕边缘会自动贴边，从一角拖到对角就是完整的整屏。</li><li>截图还没开始框选时，如果有别的 App 刚好启动、抢走了焦点，Sniplet 会把焦点拿回来，按 Esc 照常退出。</li><li>0.9.0 及以后的版本可以在菜单栏「检查更新…」直接更新到这一版。</li></ul>]]></description>
+      <enclosure url="https://github.com/rockythink/Sniplet/releases/download/v0.11.1/Sniplet-0.11.1-universal.zip" type="application/octet-stream" sparkle:edSignature="qTiGJavFTUODzkNwobDpUeP85PWe2Kno2bGk7QBBaoRT5BaQy9F4RXd4gSfuQ4uoZD2rZl/XXIULn1+YNcJdBQ==" length="4019640" />
     </item>
   </channel>
 </rss>
