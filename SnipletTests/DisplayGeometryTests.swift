@@ -40,6 +40,17 @@ struct DisplayGeometryTests {
                 == CGRect(x: -100, y: 900, width: 100, height: 100))
     }
 
+    @Test func dragsSnapOntoDisplayEdgesTheyAlmostReach() {
+        let frame = CGRect(x: 1920, y: -385, width: 1600, height: 1000)
+        // The pointer bottoms out a point inside the right and bottom edges.
+        #expect(DisplayGeometry.selection(from: CGPoint(x: 1920, y: 615), to: CGPoint(x: 3519, y: -384), in: frame)
+                == frame)
+        #expect(DisplayGeometry.selection(from: CGPoint(x: 3517, y: -382), to: CGPoint(x: 1923, y: 612), in: frame)
+                == frame)
+        #expect(DisplayGeometry.selection(from: CGPoint(x: 1925, y: 0), to: CGPoint(x: 2500, y: 609), in: frame)
+                == CGRect(x: 1925, y: 0, width: 575, height: 609))
+    }
+
     @Test func emptyOutsideAndInvalidSelectionsProduceNoPixels() {
         let frame = CGRect(x: 0, y: 0, width: 100, height: 100)
         for rect in [CGRect(x: 2, y: 3, width: 0, height: 10), CGRect(x: 2, y: 3, width: 10, height: 0),
@@ -73,8 +84,8 @@ struct DisplayGeometryTests {
     }
 
     @Test func windowHitPreservesFrontToBackOrder() {
-        let front = WindowCandidate(id: 2, bounds: CGRect(x: -100, y: -50, width: 200, height: 100))
-        let back = WindowCandidate(id: 1, bounds: CGRect(x: -200, y: -100, width: 400, height: 200))
+        let front = WindowCandidate(id: 2, bounds: CGRect(x: -100, y: -50, width: 200, height: 100), owner: 2)
+        let back = WindowCandidate(id: 1, bounds: CGRect(x: -200, y: -100, width: 400, height: 200), owner: 1)
         #expect(WindowSelectionService.hit(at: .zero, candidates: [front, back])?.id == 2)
         #expect(WindowSelectionService.hit(at: CGPoint(x: 150, y: 0), candidates: [front, back])?.id == 1)
         #expect(WindowSelectionService.hit(at: CGPoint(x: 300, y: 0), candidates: [front, back]) == nil)

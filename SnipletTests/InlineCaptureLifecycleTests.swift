@@ -69,7 +69,7 @@ import Testing
 }
 
 struct CaptureSelectionGestureTests {
-    private let window = WindowCandidate(id: 4, bounds: CGRect(x: 10, y: 10, width: 200, height: 100))
+    private let window = WindowCandidate(id: 4, bounds: CGRect(x: 10, y: 10, width: 200, height: 100), owner: 40)
 
     @Test func windowClickWaitsForMouseUpAndToleratesSmallJitter() {
         var gesture = CaptureSelectionGesture(start: CGPoint(x: 50, y: 50), window: window)
@@ -95,22 +95,80 @@ struct CaptureSelectionGestureTests {
 }
 
 struct CaptureClickTargetTests {
-    private let window = WindowCandidate(id: 4, bounds: CGRect(x: 10, y: 10, width: 200, height: 100))
+    private let window = WindowCandidate(id: 4, bounds: CGRect(x: 10, y: 10, width: 200, height: 100), owner: 40)
+    private let display = CGRect(x: 0, y: 0, width: 1600, height: 1000)
+    // Chrome in full screen, front to back: an overlay and the toolbar on top, and a content
+    // window whose frame leaves out the top strip.
+    private let overlay = WindowCandidate(id: 13, bounds: CGRect(x: 0, y: 0, width: 1600, height: 115), owner: 7)
+    private let toolbar = WindowCandidate(id: 12, bounds: CGRect(x: 0, y: 0, width: 1600, height: 47), owner: 7)
+    private let content = WindowCandidate(id: 11, bounds: CGRect(x: 0, y: 47, width: 1600, height: 953), owner: 7)
+    private var chrome: [WindowCandidate] { [overlay, toolbar, content] }
 
     @Test(arguments: [false, true])
     func clickOnWindowPicksItInEitherMode(_ windowMode: Bool) {
-        let target = CaptureClickTarget.resolve(at: CGPoint(x: 50, y: 50), candidates: [window], windowMode: windowMode)
+        let target = CaptureClickTarget.resolve(at: CGPoint(x: 50, y: 50), candidates: [window], display: display,
+                                                windowMode: windowMode)
         #expect(target?.window?.id == window.id)
     }
 
     @Test func regionClickOnBlankAreaPicksWholeScreen() {
-        let target = CaptureClickTarget.resolve(at: CGPoint(x: 500, y: 500), candidates: [window], windowMode: false)
+        let target = CaptureClickTarget.resolve(at: CGPoint(x: 500, y: 500), candidates: [window], display: display,
+                                                windowMode: false)
         guard case .screen? = target else { Issue.record("expected the whole screen, got \(String(describing: target))"); return }
         #expect(target?.window == nil)
     }
 
     @Test func windowModeClickOnBlankAreaPicksNothing() {
-        #expect(CaptureClickTarget.resolve(at: CGPoint(x: 500, y: 500), candidates: [window], windowMode: true) == nil)
+        #expect(CaptureClickTarget.resolve(at: CGPoint(x: 500, y: 500), candidates: [window], display: display,
+                                           windowMode: true) == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func fullScreenPagePicksItsAreaFromTheFrozenDisplay(_ windowMode: Bool) {
+        // Below the overlay, and inside the overlay's part that reaches over the page.
+        for point in [CGPoint(x: 800, y: 500), CGPoint(x: 800, y: 100)] {
+            let target = CaptureClickTarget.resolve(at: point, candidates: chrome, display: display, windowMode: windowMode)
+            guard case let .area(area)? = target else { Issue.record("expected an area, got \(String(describing: target))"); return }
+            #expect(area == content.bounds)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func fullScreenToolbarPicksTheWholeDisplay(_ windowMode: Bool) {
+        let target = CaptureClickTarget.resolve(at: CGPoint(x: 800, y: 20), candidates: chrome, display: display,
+                                                windowMode: windowMode)
+        guard case .screen? = target else { Issue.record("expected the whole screen, got \(String(describing: target))"); return }
+    }
+
+    @Test func fullScreenWindowCoveringTheDisplayPicksAllOfIt() {
+        // Safari: the content window covers the display and its toolbar window sits on top.
+        let page = WindowCandidate(id: 21, bounds: display, owner: 9)
+        let bar = WindowCandidate(id: 22, bounds: CGRect(x: 0, y: 0, width: 1600, height: 52), owner: 9)
+        for point in [CGPoint(x: 800, y: 20), CGPoint(x: 800, y: 500)] {
+            let target = CaptureClickTarget.resolve(at: point, candidates: [bar, page], display: display, windowMode: false)
+            guard case let .area(area)? = target else { Issue.record("expected an area, got \(String(describing: target))"); return }
+            #expect(area == display)
+        }
+    }
+
+    @Test func fullScreenSheetsAndOtherAppsStayOrdinaryWindows() {
+        let sheet = WindowCandidate(id: 14, bounds: CGRect(x: 500, y: 47, width: 600, height: 300), owner: 7)
+        let floating = WindowCandidate(id: 15, bounds: CGRect(x: 100, y: 600, width: 300, height: 200), owner: 8)
+        let candidates = [floating, sheet] + chrome
+        #expect(CaptureClickTarget.resolve(at: CGPoint(x: 800, y: 200), candidates: candidates, display: display,
+                                           windowMode: false)?.window?.id == sheet.id)
+        #expect(CaptureClickTarget.resolve(at: CGPoint(x: 200, y: 700), candidates: candidates, display: display,
+                                           windowMode: false)?.window?.id == floating.id)
+    }
+
+    @Test func appWindowsThatLeaveAGapAreNotFullScreen() {
+        // Zoomed below the menu bar: the toolbar no longer reaches the top edge.
+        let zoomed = [WindowCandidate(id: 12, bounds: CGRect(x: 0, y: 25, width: 1600, height: 47), owner: 7),
+                      WindowCandidate(id: 11, bounds: CGRect(x: 0, y: 72, width: 1600, height: 928), owner: 7)]
+        #expect(CaptureClickTarget.resolve(at: CGPoint(x: 800, y: 500), candidates: zoomed, display: display,
+                                           windowMode: false)?.window?.id == 11)
+        #expect(CaptureClickTarget.resolve(at: CGPoint(x: 800, y: 40), candidates: zoomed, display: display,
+                                           windowMode: false)?.window?.id == 12)
     }
 }
 

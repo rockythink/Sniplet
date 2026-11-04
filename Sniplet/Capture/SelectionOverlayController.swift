@@ -29,13 +29,34 @@ nonisolated struct CaptureSelectionGesture {
 
 /// What a click (or hover) picks: the ordinary window under the pointer, or, in region mode,
 /// the whole display when nothing is there (desktop, menu bar, Dock).
+///
+/// A full-screen app leaves no blank area, so its own windows choose instead: the main
+/// (largest) window picks its area, and a bar spanning the display outside it, such as
+/// Chrome's toolbar row, picks the whole display in either mode.
 nonisolated enum CaptureClickTarget: Sendable {
     case window(WindowCandidate)
+    /// A full-screen app's main window, cropped from the frozen display (Quartz rect). Its
+    /// surface can be larger than its frame: Chrome draws the whole screen into a frame without
+    /// the top strip, so a window capture comes back shrunk with an empty band.
+    case area(CGRect)
     case screen
 
-    static func resolve(at quartzPoint: CGPoint, candidates: [WindowCandidate], windowMode: Bool) -> CaptureClickTarget? {
-        if let window = WindowSelectionService.hit(at: quartzPoint, candidates: candidates) { return .window(window) }
-        return windowMode ? nil : .screen
+    static func resolve(at quartzPoint: CGPoint, candidates: [WindowCandidate], display: CGRect,
+                        windowMode: Bool) -> CaptureClickTarget? {
+        guard let window = WindowSelectionService.hit(at: quartzPoint, candidates: candidates) else {
+            return windowMode ? nil : .screen
+        }
+        guard let group = WindowSelectionService.fullScreenWindows(of: window, candidates: candidates, display: display),
+              let main = group.first else { return .window(window) }
+        let area = main.bounds.intersection(display)
+        if window.id == main.id { return .area(area) }
+        let part = window.bounds.intersection(display)
+        let spansDisplay = (part.minX <= display.minX + 1 && part.maxX >= display.maxX - 1)
+            || (part.minY <= display.minY + 1 && part.maxY >= display.maxY - 1)
+        // Sheets and popovers of the full-screen app stay ordinary windows. A bar's transparent
+        // part over the page (Chrome's overlay reaches into it) still picks the page.
+        guard spansDisplay else { return .window(window) }
+        return area.contains(quartzPoint) ? .area(area) : .screen
     }
 
     var window: WindowCandidate? {
@@ -61,6 +82,8 @@ nonisolated enum CaptureClickTarget: Sendable {
     private var completedScreen: CGDirectDisplayID?
     private var deferredClick: (point: CGPoint, screen: CaptureScreen)?
     private var deferredRegion: (rect: CGRect, screen: CaptureScreen)?
+    private var resignObserver: NSObjectProtocol?
+    private var focusReclaimed = false
 
     func beginSelection(screens: [CaptureScreen], windowMode: Bool,
                         selectionAppearance: CaptureSelectionAppearance) {
@@ -92,6 +115,27 @@ nonisolated enum CaptureClickTarget: Sendable {
         if let screen = screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) {
             hosts[screen.id]?.panel?.makeKey()
         }
+        // An app that activates itself meanwhile, such as one finishing its launch, would get
+        // every key press, Escape included, from behind the overlay. Take focus back once;
+        // a second switch, such as a deliberate ⌘-Tab, is left alone.
+        focusReclaimed = false
+        resignObserver = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification,
+                                                                object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reclaimFocus() }
+        }
+    }
+
+    private func reclaimFocus() {
+        guard finished == nil, !focusReclaimed else { return }
+        focusReclaimed = true
+        NSApp.activate(ignoringOtherApps: true)
+        let screen = screens.first { $0.id == selectedScreen } ?? screens.first { $0.frame.contains(NSEvent.mouseLocation) }
+        if let screen { hosts[screen.id]?.panel?.makeKey() }
+    }
+
+    private func stopReclaimingFocus() {
+        if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
+        resignObserver = nil
     }
 
     var presentedWindowIDs: Set<CGWindowID> { hosts.windowIDs }
@@ -156,6 +200,7 @@ nonisolated enum CaptureClickTarget: Sendable {
         let pending = waiter
         waiter = nil
         finished = .some(nil)
+        stopReclaimingFocus()
         hosts.close()
         resetSelection()
         pending?.resume(returning: nil)
@@ -207,10 +252,14 @@ nonisolated enum CaptureClickTarget: Sendable {
 
     private func finishClick(_ point: CGPoint, screen: CaptureScreen) {
         let quartz = DisplayGeometry.quartzPoint(point, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
-        switch CaptureClickTarget.resolve(at: quartz, candidates: candidates, windowMode: isWindowMode) {
+        switch CaptureClickTarget.resolve(at: quartz, candidates: candidates, display: screen.quartzBounds,
+                                          windowMode: isWindowMode) {
         case let .window(candidate)?:
             let rect = DisplayGeometry.appKitRect(candidate.bounds, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
             complete(.window(candidate, screen), rect: rect, screen: screen)
+        case let .area(area)?:
+            completeRegion(DisplayGeometry.appKitRect(area, screenFrame: screen.frame, displayBounds: screen.quartzBounds),
+                           screen: screen)
         case .screen?:
             completeRegion(screen.frame, screen: screen)
         case nil:
@@ -233,11 +282,14 @@ nonisolated enum CaptureClickTarget: Sendable {
         let quartz = DisplayGeometry.quartzPoint(point, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
         // Until windows are known, nothing is highlighted rather than flashing the whole screen.
         let target = candidatesReady
-            ? CaptureClickTarget.resolve(at: quartz, candidates: candidates, windowMode: isWindowMode) : nil
+            ? CaptureClickTarget.resolve(at: quartz, candidates: candidates, display: screen.quartzBounds,
+                                         windowMode: isWindowMode) : nil
         hovered = target?.window
         let highlight: CGRect? = switch target {
         case let .window(candidate)?:
             DisplayGeometry.appKitRect(candidate.bounds, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
+        case let .area(area)?:
+            DisplayGeometry.appKitRect(area, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
         case .screen?: screen.frame
         case nil: nil
         }
@@ -261,6 +313,7 @@ nonisolated enum CaptureClickTarget: Sendable {
         hosts.retainOnly(screen.id)
         completedScreen = screen.id
         finished = .some(result)
+        stopReclaimingFocus()
         let pending = waiter
         waiter = nil
         pending?.resume(returning: result)

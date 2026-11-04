@@ -39,11 +39,23 @@ nonisolated enum DisplayGeometry {
         return clipped.offsetBy(dx: -screenFrame.minX, dy: -screenFrame.minY)
     }
 
+    /// Drag ends this close to a display edge land on it. The pointer stops a point short of the
+    /// right and bottom edges, so without this no drag could ever cover the whole display.
+    static let edgeSnap: CGFloat = 4
+
     static func selection(from start: CGPoint, to end: CGPoint, in screenFrame: CGRect) -> CGRect {
-        let x = min(max(end.x, screenFrame.minX), screenFrame.maxX)
-        let y = min(max(end.y, screenFrame.minY), screenFrame.maxY)
-        return CGRect(x: min(start.x, x), y: min(start.y, y),
-                      width: abs(start.x - x), height: abs(start.y - y))
+        let a = snapped(start, in: screenFrame)
+        let b = snapped(end, in: screenFrame)
+        return CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
+    }
+
+    private static func snapped(_ point: CGPoint, in frame: CGRect) -> CGPoint {
+        func axis(_ value: CGFloat, _ low: CGFloat, _ high: CGFloat) -> CGFloat {
+            let clamped = min(max(value, low), high)
+            if clamped - low <= edgeSnap { return low }
+            return high - clamped <= edgeSnap ? high : clamped
+        }
+        return CGPoint(x: axis(point.x, frame.minX, frame.maxX), y: axis(point.y, frame.minY, frame.maxY))
     }
 
     @MainActor static func displayID(for screen: NSScreen) -> CGDirectDisplayID? {

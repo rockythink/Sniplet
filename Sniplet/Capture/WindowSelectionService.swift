@@ -5,6 +5,7 @@ import ScreenCaptureKit
 nonisolated struct WindowCandidate: Sendable {
     let id: CGWindowID
     let bounds: CGRect
+    let owner: pid_t
 }
 
 /// CGWindow order is preserved; ScreenCaptureKit determines which IDs are capturable.
@@ -24,17 +25,47 @@ actor WindowSelectionService {
         return entries.compactMap { entry in
             guard let id = (entry[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
                   capturableIDs.contains(id),
-                  (entry[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value != ownPID,
+                  let owner = (entry[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value, owner != ownPID,
                   (entry[kCGWindowLayer as String] as? NSNumber)?.intValue == 0,
                   (entry[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 0 > 0,
                   let raw = entry[kCGWindowBounds as String] as? [String: Any],
                   let bounds = CGRect(dictionaryRepresentation: raw as CFDictionary),
                   bounds.width > 0, bounds.height > 0 else { return nil }
-            return WindowCandidate(id: id, bounds: bounds)
+            return WindowCandidate(id: id, bounds: bounds, owner: owner)
         }
     }
 
     nonisolated static func hit(at point: CGPoint, candidates: [WindowCandidate]) -> WindowCandidate? {
         candidates.first { $0.bounds.contains(point) }
+    }
+
+    /// The windows `window`'s app shows on `display` (Quartz), largest first, when together they
+    /// cover all of it: the app is in full screen there. A full-screen app need not be one window:
+    /// Chrome leaves the top strip out of its content window and covers it with toolbar windows.
+    nonisolated static func fullScreenWindows(of window: WindowCandidate, candidates: [WindowCandidate],
+                                              display: CGRect) -> [WindowCandidate]? {
+        let group = candidates.filter { $0.owner == window.owner && $0.bounds.intersects(display) }
+        // A point of slack absorbs fractional window frames at the display edges.
+        let target = display.insetBy(dx: 1, dy: 1)
+        guard !target.isEmpty, covers(group.map(\.bounds), target) else { return nil }
+        return group.sorted { area($0.bounds.intersection(display)) > area($1.bounds.intersection(display)) }
+    }
+
+    /// Exact union coverage on the grid of every rectangle edge; window counts stay small.
+    nonisolated private static func covers(_ rects: [CGRect], _ target: CGRect) -> Bool {
+        let parts = rects.map { $0.intersection(target) }.filter { !$0.isNull && !$0.isEmpty }
+        let xs = Set(parts.flatMap { [$0.minX, $0.maxX] } + [target.minX, target.maxX]).sorted()
+        let ys = Set(parts.flatMap { [$0.minY, $0.maxY] } + [target.minY, target.maxY]).sorted()
+        for (x0, x1) in zip(xs, xs.dropFirst()) {
+            for (y0, y1) in zip(ys, ys.dropFirst()) {
+                let center = CGPoint(x: (x0+x1)/2, y: (y0+y1)/2)
+                guard parts.contains(where: { $0.contains(center) }) else { return false }
+            }
+        }
+        return true
+    }
+
+    nonisolated private static func area(_ rect: CGRect) -> CGFloat {
+        rect.isNull ? 0 : rect.width * rect.height
     }
 }
