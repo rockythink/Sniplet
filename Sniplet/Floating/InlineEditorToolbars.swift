@@ -134,9 +134,12 @@ struct InlineActionToolbar: View {
                         .disabled(session.isBusy)
                 }
                 if let delayRegion {
+                    // The header says what happens once, so each item is just its number.
                     Menu {
-                        ForEach(AppPreferences.captureDelayChoices, id: \.self) { seconds in
-                            Button("\(seconds) 秒后截取这块区域") { delayRegion(seconds) }
+                        Section("延迟截取这块区域") {
+                            ForEach(AppPreferences.captureDelayChoices, id: \.self) { seconds in
+                                Button("\(seconds) 秒") { delayRegion(seconds) }
+                            }
                         }
                     } label: {
                         InlineToolbarIcon("timer")

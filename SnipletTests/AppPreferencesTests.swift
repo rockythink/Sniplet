@@ -33,6 +33,18 @@ import Testing
         #expect(!ClipboardService.marksCopiesTransient)
     }
 
+    @Test func menuBarIconStartsShownAndRemembersBeingHidden() {
+        let suite = "Sniplet.Prefs.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = AppPreferences(defaults: defaults)
+        #expect(preferences.showsMenuBarIcon)
+        preferences.showsMenuBarIcon = false
+        #expect(!AppPreferences(defaults: defaults).showsMenuBarIcon)
+        preferences.showsMenuBarIcon = true
+        #expect(AppPreferences(defaults: defaults).showsMenuBarIcon)
+    }
+
     @Test(arguments: CaptureSelectionAppearance.LineStyle.allCases)
     func customSelectionAppearancePersists(lineStyle: CaptureSelectionAppearance.LineStyle) throws {
         let suite = "Sniplet.Prefs.\(UUID().uuidString)"

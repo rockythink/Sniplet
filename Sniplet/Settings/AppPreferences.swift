@@ -40,6 +40,11 @@ final class AppPreferences {
         }
     }
 
+    /// Off once the user hides the menu bar icon, in settings or by Command-dragging it away.
+    var showsMenuBarIcon: Bool {
+        didSet { defaults.set(showsMenuBarIcon, forKey: "menuBar.showsIcon") }
+    }
+
     /// Copy, pin and finish also drop a PNG into the ⌘S folder.
     var autoSaveCopies: Bool {
         didSet { defaults.set(autoSaveCopies, forKey: "export.autoSave") }
@@ -60,6 +65,7 @@ final class AppPreferences {
         lastCaptureRegion = defaults.data(forKey: "capture.lastRegion")
             .flatMap { try? JSONDecoder().decode(CaptureRegionMemory?.self, from: $0) } ?? nil
         autoSaveCopies = defaults.bool(forKey: "export.autoSave")
+        showsMenuBarIcon = defaults.object(forKey: "menuBar.showsIcon") as? Bool ?? true
         ClipboardService.marksCopiesTransient = transientCopyEnabled
     }
 }

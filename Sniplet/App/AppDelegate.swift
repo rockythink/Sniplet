@@ -32,9 +32,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Opening Sniplet again while it runs (Launchpad, Spotlight, Finder) has nothing to show
-    /// in the Dock, so it opens the guide — the way back when the menu bar icon is hidden.
+    /// in the Dock, so it opens the guide and brings back a hidden menu bar icon — the way
+    /// back to the menu and settings when the icon is hidden or crowded out.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         guard !AppRuntime.isUnitTesting, !coordinator.isCapturing else { return false }
+        coordinator.preferences.showsMenuBarIcon = true
         coordinator.showGuide()
         return false
     }

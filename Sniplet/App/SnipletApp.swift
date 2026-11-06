@@ -6,7 +6,7 @@ struct SnipletApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        MenuBarExtra(isInserted: .constant(!AppRuntime.isUnitTesting)) {
+        MenuBarExtra(isInserted: menuBarIconShown) {
             SnipletMenu(coordinator: delegate.coordinator)
         } label: {
             if let elapsed = delegate.coordinator.recordingElapsed {
@@ -24,6 +24,15 @@ struct SnipletApp: App {
             if AppRuntime.isUnitTesting { EmptyView() }
             else { SettingsView(coordinator: delegate.coordinator) }
         }
+    }
+
+    /// Command-dragging the icon away (or the system's menu bar settings) turns the preference
+    /// off instead of being undone. A recording still shows its timer.
+    private var menuBarIconShown: Binding<Bool> {
+        let preferences = delegate.coordinator.preferences
+        let shown = preferences.showsMenuBarIcon || delegate.coordinator.recordingElapsed != nil
+        return Binding(get: { !AppRuntime.isUnitTesting && shown },
+                       set: { if preferences.showsMenuBarIcon != $0 { preferences.showsMenuBarIcon = $0 } })
     }
 }
 

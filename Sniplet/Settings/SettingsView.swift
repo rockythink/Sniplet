@@ -56,6 +56,12 @@ struct SettingsView: View {
                     Text(error).font(.callout).foregroundStyle(.red)
                 }
             }
+            Section("菜单栏") {
+                Toggle(isOn: $preferences.showsMenuBarIcon) {
+                    Text("在菜单栏显示图标")
+                    Text("也可以按住 ⌘ 把图标拖出菜单栏。隐藏后用快捷键截图，录屏时仍显示计时；再打开一次 Sniplet（聚焦搜索或「应用程序」文件夹），图标就会回来。")
+                }
+            }
             Section("功能开关") {
                 Toggle(isOn: $preferences.ocrEnabled) {
                     Text("文字识别（OCR）")
