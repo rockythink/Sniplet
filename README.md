@@ -8,13 +8,13 @@ Capture, annotate, beautify, then share — without leaving the selection. Built
 
 ## Download & install
 
-**v0.11.1 · build 19 · macOS 14+ · Universal (Apple Silicon + Intel)**
+**v0.11.2 · build 20 · macOS 14+ · Universal (Apple Silicon + Intel)**
 
-- [Download DMG](https://github.com/rockythink/Sniplet/releases/download/v0.11.1/Sniplet-0.11.1-universal.dmg)
-- [Download ZIP](https://github.com/rockythink/Sniplet/releases/download/v0.11.1/Sniplet-0.11.1-universal.zip)
-- [SHA-256 checksums](https://github.com/rockythink/Sniplet/releases/download/v0.11.1/SHA256SUMS)
+- [Download DMG](https://github.com/rockythink/Sniplet/releases/download/v0.11.2/Sniplet-0.11.2-universal.dmg)
+- [Download ZIP](https://github.com/rockythink/Sniplet/releases/download/v0.11.2/Sniplet-0.11.2-universal.zip)
+- [SHA-256 checksums](https://github.com/rockythink/Sniplet/releases/download/v0.11.2/SHA256SUMS)
 
-Official v0.11.1 downloads are Developer ID signed, securely timestamped, Apple-notarized and stapled. Both app and DMG passed Gatekeeper assessment as `Notarized Developer ID`. This does not certify every feature or hardware/system combination.
+Official v0.11.2 downloads are Developer ID signed, securely timestamped, Apple-notarized and stapled. Both app and DMG passed Gatekeeper assessment as `Notarized Developer ID`. This does not certify every feature or hardware/system combination.
 
 打开 DMG，把 **Sniplet.app** 拖进 **Applications / 应用程序**。启动后在菜单栏找 Sniplet 图标（选框里拿出一块方片）；默认截图快捷键是 **Shift + Command + A（⇧⌘A）**。
 
@@ -61,7 +61,7 @@ macOS 将读取屏幕画面的权限称为“屏幕录制”或“录屏与系�
 
 ## Build from source
 
-Toolchain used for v0.11.1: **Xcode 27.2 / Swift 6.4**, XcodeGen 2.46.0. Source uses Swift 6 complete concurrency checking and MainActor default isolation. Minimum deployment target is macOS 14.
+Toolchain used for v0.11.2: **Xcode 27.2 / Swift 6.4**, XcodeGen 2.46.0. Source uses Swift 6 complete concurrency checking and MainActor default isolation. Minimum deployment target is macOS 14.
 
 `project.yml` is the project configuration source; regenerate after configuration changes. The checked-in Xcode project is generated, not maintained separately.
 
@@ -127,7 +127,8 @@ The homepage's editable beautification sample is **explicitly labeled an illustr
 
 ## Verification status
 
-- v0.11.1: **247 tests in 49 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage checks that drags snap onto display edges they almost reach, what hovering a full-screen app picks (its main window's area, cropped from the frozen display; the whole screen from a toolbar spanning the display outside it, for both Chrome-style split windows and a single window covering the display), and that sheets of a full-screen app and other apps' windows stay ordinary windows. Full-screen detection was checked against the live window list of a full-screen Chrome, and hovering its page and address bar and pressing Escape before any click were tried by hand on a local build. Taking focus back after another app activates during selection was not reproduced by hand before release.
+- v0.11.2: **248 tests in 49 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage checks that the menu bar icon preference starts on and persists once turned off or back on. Hiding the icon by Command-dragging it or with the system's menu bar settings, bringing it back by opening Sniplet again, and the shortened delay menu were not covered by automated checks or confirmed by hand before release.
+- Earlier, v0.11.1: **247 tests in 49 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage checks that drags snap onto display edges they almost reach, what hovering a full-screen app picks (its main window's area, cropped from the frozen display; the whole screen from a toolbar spanning the display outside it, for both Chrome-style split windows and a single window covering the display), and that sheets of a full-screen app and other apps' windows stay ordinary windows. Full-screen detection was checked against the live window list of a full-screen Chrome, and hovering its page and address bar and pressing Escape before any click were tried by hand on a local build. Taking focus back after another app activates during selection was not reproduced by hand before release.
 - Earlier, v0.11.0: **241 tests in 49 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage checks which mark the style row edits (text being typed, then the selected mark, then the active tool), copying a recording into the ⌘S folder without replacing files or moving the source, keeping a copied recording while the clipboard still holds it, and placing the permission panel beside System Settings (below, above, or inside a full-screen window, always on screen). The toolbars in every tool state and the recording card were rendered offscreen in light and dark for layout review, and the new toolbar was tried by hand in a live editor on a local build. Dropping the app into System Settings from the permission panel and the recording card with a real recording (copy, drag-out, keys) were not exercised by these checks.
 - Earlier, v0.10.0: **234 tests in 47 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage checks the welcome steps (order, resuming once after a relaunch, the permission step's next action, the relaunch wait argument), editor tips (shown in order and once each, skipped once their feature is used, reset, messages naming only bound shortcuts), tip placement (on the toolbar side away from the capture, hidden rather than covering it, kept on screen on small displays) and guide content following the bound shortcuts. The welcome, guide, tip and shortcut-sheet views were rendered offscreen for layout review; the permission relaunch, login-item registration and tips inside a live editor were not tried by hand before release.
 - Earlier, v0.9.1: **220 tests in 43 suites passed**, 0 failures or skips, on Apple Silicon and macOS 27.0.1. New coverage checks what a click in the selection overlay picks: the hovered window in either mode, the whole display on a blank area in region mode, and nothing in window mode. The blank-area click was tried by hand on a local build before release.
@@ -138,7 +139,7 @@ The homepage's editable beautification sample is **explicitly labeled an illustr
 - Earlier, v0.5.0: **170 tests passed / 258 parameterized runs**, 0 failures or skips, on Apple Silicon and macOS 27.0.1.
 - Actual synthetic PNG smoke covered resize, source-pixel alignment, fractional annotations, one-step undo/redo, move, clamp/cancel, style preservation and unchanged PNG bytes when changing selection hints. Unattached native scroll views reproduced the old recentering drift, then verified fixed opposite edges and pointer-matched resizing at 25% and 200% zoom. No visible window or real capture was used.
 - Earlier drag-path smoke covered private native file/image representations and background Objective-C file-promise callbacks.
-- Public v0.11.1 app ZIP and DMG notarization were both **Accepted**; stapled tickets and Gatekeeper acceptance were verified.
+- Public v0.11.2 app ZIP and DMG notarization were both **Accepted**; stapled tickets and Gatekeeper acceptance were verified.
 - **Not separately certified:** macOS 14 runtime, real Intel hardware, every chat/browser drop target, VoiceOver, IME edge cases, or real-device performance targets. A universal binary, passing unit tests and Apple notarization are not substitutes for these checks.
 - Native desktop interaction is manually tested by users; automated checks do not take over the desktop or trigger real captures.
 
