@@ -9,6 +9,28 @@ import release from '../data/release.json';
 
 const title = 'Sniplet — 截得刚刚好。免费开源的 macOS 截图工具';
 const description = 'Sniplet 是免费开源的原生 macOS 截图工具，也能轻量录屏。在选区原位标注，预设圆角、阴影、边框和背景，再复制、保存、钉图或拖出最终图像。支持延迟截图、本地文字识别和截图历史，不需要账号。';
+const pageUrl = 'https://sniplet.elazer.wang/';
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Sniplet',
+  description,
+  url: pageUrl,
+  operatingSystem: 'macOS 14+',
+  applicationCategory: 'UtilitiesApplication',
+  softwareVersion: release.version,
+  downloadUrl: release.download,
+  author: {
+    '@type': 'Person',
+    name: '石头',
+    url: 'https://elazer.wang',
+  },
+  offers: {
+    '@type': 'Offer',
+    price: 0,
+  },
+};
+const structuredDataJson = JSON.stringify(structuredData, null, 2).replace(/</g, '\\u003c');
 const presets = [
   { id: 'plain', label: '原图', detail: '原图：不增加圆角、阴影或边框' },
   { id: 'soft', label: '轻柔', detail: '轻柔：圆角与淡阴影，让画面轻一点' },
@@ -39,7 +61,7 @@ const faqs = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#f7f9f6" />
-    <link rel="canonical" href="https://sniplet.elazer.wang/" />
+    <link rel="canonical" href={pageUrl} />
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/icon.png" />
     <meta property="og:type" content="website" />
@@ -47,7 +69,7 @@ const faqs = [
     <meta property="og:site_name" content="Sniplet" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content="https://sniplet.elazer.wang/" />
+    <meta property="og:url" content={pageUrl} />
     <meta property="og:image" content="https://sniplet.elazer.wang/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -58,6 +80,7 @@ const faqs = [
     <meta name="twitter:image" content="https://sniplet.elazer.wang/og.png" />
     <meta name="twitter:image:alt" content="Sniplet 截图工具宣传图，含合成界面示意。" />
     <title>{title}</title>
+    <script is:inline type="application/ld+json" set:html={structuredDataJson} />
   </head>
   <body>
     <a class="skip-link" href="#main">跳到正文</a>
