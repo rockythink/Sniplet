@@ -161,6 +161,53 @@ struct CaptureClickTargetTests {
                                            windowMode: false)?.window?.id == floating.id)
     }
 
+    // Chrome in full screen on a 13-inch MacBook Air: nothing covers the 37 pt notch strip.
+    private let notched = CGRect(x: 0, y: 0, width: 1470, height: 956)
+    private var notchedChrome: [WindowCandidate] {
+        [WindowCandidate(id: 33, bounds: CGRect(x: 0, y: 37, width: 1470, height: 111), owner: 7),
+         WindowCandidate(id: 32, bounds: CGRect(x: 0, y: 37, width: 1470, height: 43), owner: 7),
+         WindowCandidate(id: 31, bounds: CGRect(x: 0, y: 80, width: 1470, height: 876), owner: 7)]
+    }
+
+    @Test(arguments: [false, true])
+    func fullScreenPageBelowTheNotchPicksItsAreaFromTheFrozenDisplay(_ windowMode: Bool) {
+        let target = CaptureClickTarget.resolve(at: CGPoint(x: 700, y: 500), candidates: notchedChrome, display: notched,
+                                                topInset: 37, windowMode: windowMode)
+        guard case let .area(area)? = target else { Issue.record("expected an area, got \(String(describing: target))"); return }
+        #expect(area == CGRect(x: 0, y: 80, width: 1470, height: 876))
+    }
+
+    @Test func fullScreenToolbarBelowTheNotchPicksTheWholeDisplay() {
+        let target = CaptureClickTarget.resolve(at: CGPoint(x: 700, y: 60), candidates: notchedChrome, display: notched,
+                                                topInset: 37, windowMode: false)
+        guard case .screen? = target else { Issue.record("expected the whole screen, got \(String(describing: target))"); return }
+    }
+
+    @Test func aWindowLeavingRoomBelowTheNotchStaysOrdinary() {
+        let zoomed = WindowCandidate(id: 41, bounds: CGRect(x: 0, y: 37, width: 1470, height: 876), owner: 7)
+        #expect(CaptureClickTarget.resolve(at: CGPoint(x: 700, y: 500), candidates: [zoomed], display: notched,
+                                           topInset: 37, windowMode: false)?.window?.id == 41)
+    }
+
+    private func entry(owner: Int32, layer: Int) -> [String: Any] {
+        [kCGWindowNumber as String: NSNumber(value: 5),
+         kCGWindowOwnerPID as String: NSNumber(value: owner),
+         kCGWindowLayer as String: NSNumber(value: layer),
+         kCGWindowAlpha as String: NSNumber(value: 1),
+         kCGWindowBounds as String: CGRect(x: 0, y: 0, width: 600, height: 400).dictionaryRepresentation]
+    }
+
+    @Test func ownNormalWindowsAreOfferedOnlyWhenKept() {
+        let settings = entry(owner: 99, layer: 0)
+        #expect(WindowSelectionService.candidate(from: settings, capturableIDs: [5], ownPID: 99, includingOwn: false) == nil)
+        #expect(WindowSelectionService.candidate(from: settings, capturableIDs: [5], ownPID: 99, includingOwn: true)?.id == 5)
+    }
+
+    @Test func ownOverlaysAreNeverOffered() {
+        let overlay = entry(owner: 99, layer: 101)
+        #expect(WindowSelectionService.candidate(from: overlay, capturableIDs: [5], ownPID: 99, includingOwn: true) == nil)
+    }
+
     @Test func appWindowsThatLeaveAGapAreNotFullScreen() {
         // Zoomed below the menu bar: the toolbar no longer reaches the top edge.
         let zoomed = [WindowCandidate(id: 12, bounds: CGRect(x: 0, y: 25, width: 1600, height: 47), owner: 7),

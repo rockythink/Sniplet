@@ -67,11 +67,14 @@ nonisolated struct CaptureScreen: Sendable {
     let id: CGDirectDisplayID
     let frame: CGRect
     let quartzBounds: CGRect
+    /// Height of the notch strip at the top of the display; zero on displays without one.
+    let topInset: CGFloat
 
     @MainActor static func current() -> [CaptureScreen] {
         NSScreen.screens.compactMap { screen in
             guard let id = DisplayGeometry.displayID(for: screen) else { return nil }
-            return CaptureScreen(id: id, frame: screen.frame, quartzBounds: CGDisplayBounds(id))
+            return CaptureScreen(id: id, frame: screen.frame, quartzBounds: CGDisplayBounds(id),
+                                 topInset: screen.safeAreaInsets.top)
         }
     }
 }

@@ -1,4 +1,27 @@
 import AppKit
+import SwiftUI
+
+extension NSWindow {
+    /// Sniplet activates itself to capture. A window left on another Space would make that
+    /// activation switch there, away from what the user is capturing; it comes along instead,
+    /// including onto another app's full-screen Space.
+    func followActiveSpace() {
+        collectionBehavior.formUnion([.moveToActiveSpace, .fullScreenAuxiliary])
+    }
+}
+
+/// Reaches the window of a SwiftUI scene, which offers no collection behavior of its own.
+struct FollowsActiveSpace: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { Probe() }
+    func updateNSView(_ view: NSView, context: Context) {}
+
+    private final class Probe: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.followActiveSpace()
+        }
+    }
+}
 
 extension NSAlert {
     /// Menu-bar apps may be activated while another app owns a full-screen

@@ -5,10 +5,13 @@ import ScreenCaptureKit
 
 actor CaptureService {
     private var content: SCShareableContent?
+    private var keepsOwnWindows = false
 
     /// One on-screen inventory for the whole gesture. Off-screen enumeration is intentionally
     /// avoided: it can take longer than the screenshot itself on a busy window server.
-    func prepare(requiredWindowIDs: Set<CGWindowID>) async throws -> Set<CGWindowID> {
+    /// `keepingOwnWindows` leaves Sniplet's normal-level windows in the picture for this gesture.
+    func prepare(requiredWindowIDs: Set<CGWindowID>, keepingOwnWindows: Bool = false) async throws -> Set<CGWindowID> {
+        keepsOwnWindows = keepingOwnWindows
         guard CGPreflightScreenCaptureAccess() else { throw CaptureError.permissionUnavailable }
         // Freshly ordered-front overlay windows can take a few frames to reach the shareable
         // list, especially with several displays or a busy window server. A single yield was
@@ -29,7 +32,7 @@ actor CaptureService {
     }
 
     func captureDisplay(_ displayID: CGDirectDisplayID) async throws -> CapturedImage {
-        if content == nil { _ = try await prepare(requiredWindowIDs: []) }
+        if content == nil { _ = try await prepare(requiredWindowIDs: [], keepingOwnWindows: keepsOwnWindows) }
         guard let content else { throw CaptureError.displayUnavailable }
         return try await capture(displayID, content: content)
     }
@@ -62,7 +65,8 @@ actor CaptureService {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         self.content = content
         try Task.checkCancellation()
-        let candidates = WindowSelectionService.ordinaryWindows(capturableIDs: Set(content.windows.map(\.windowID)))
+        let candidates = WindowSelectionService.ordinaryWindows(capturableIDs: Set(content.windows.map(\.windowID)),
+                                                                includingOwn: keepsOwnWindows)
         guard candidates.contains(where: { $0.id == windowID }),
               let window = content.windows.first(where: { $0.windowID == windowID }),
               let display = content.displays.max(by: {
@@ -109,8 +113,10 @@ actor CaptureService {
             throw CaptureError.displayUnavailable
         }
         let ownPID = ProcessInfo.processInfo.processIdentifier
-        let excluded = content.windows.filter { $0.owningApplication?.processID == ownPID }
-        if excluded.isEmpty {
+        let own = content.windows.filter { $0.owningApplication?.processID == ownPID }
+        // Overlays, editors, pins and the status item are never normal-level windows.
+        let excluded = keepsOwnWindows ? own.filter { $0.windowLayer != 0 } : own
+        if own.isEmpty {
             let visible = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]]
             guard let visible, !visible.contains(where: {
                 ($0[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == ownPID

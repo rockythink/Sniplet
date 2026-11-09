@@ -12,6 +12,7 @@ final class WelcomeWindowController: NSWindowController, NSWindowDelegate {
         window.title = "欢迎使用 Sniplet"
         window.isReleasedWhenClosed = false
         window.isRestorable = false
+        window.followActiveSpace()
         super.init(window: window)
         // Closing releases this hosting view, so never do it inside one of its button actions.
         window.contentView = NSHostingView(rootView: WelcomeView(coordinator: coordinator, initialStep: step, close: { [weak self] in

@@ -13,6 +13,7 @@ final class HistoryWindowController: NSWindowController, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.isRestorable = false
         window.minSize = NSSize(width: 700, height: 440)
+        window.followActiveSpace()
         window.contentView = NSHostingView(rootView: HistoryContainerView(coordinator: coordinator))
         super.init(window: window)
         window.delegate = self

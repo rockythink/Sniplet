@@ -194,6 +194,7 @@ final class AppCoordinator {
                 guard let outcome = try await self.captureWorkflow.capture(mode: request.mode,
                     displayID: request.displayID, regionRect: request.regionRect,
                     freezeFirst: request.delaySeconds != nil,
+                    keepingOwnWindows: self.previousApplication?.processIdentifier == ProcessInfo.processInfo.processIdentifier,
                     selectionAppearance: self.preferences.selectionAppearance) else {
                     self.endCapture(request.id)
                     return

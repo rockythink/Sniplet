@@ -15,6 +15,7 @@ final class GuideWindowController: NSWindowController, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.isRestorable = false
         window.minSize = NSSize(width: 640, height: 420)
+        window.followActiveSpace()
         super.init(window: window)
         window.contentView = NSHostingView(rootView: GuideView(coordinator: coordinator, selection: selection))
         window.delegate = self

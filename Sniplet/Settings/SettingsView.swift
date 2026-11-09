@@ -19,6 +19,7 @@ struct SettingsView: View {
                 .tabItem { Label("隐私与历史", systemImage: "lock.shield") }
         }
         .frame(width: 600, height: 520)
+        .background(FollowsActiveSpace())
         .onAppear { coordinator.permissions.refresh() }
         .onChange(of: coordinator.preferences.historyEnabled) { _, _ in coordinator.historyPreferenceChanged() }
         .onChange(of: coordinator.preferences.ocrEnabled) { _, _ in coordinator.historyPreferenceChanged() }

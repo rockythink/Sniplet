@@ -42,11 +42,12 @@ nonisolated enum CaptureClickTarget: Sendable {
     case screen
 
     static func resolve(at quartzPoint: CGPoint, candidates: [WindowCandidate], display: CGRect,
-                        windowMode: Bool) -> CaptureClickTarget? {
+                        topInset: CGFloat = 0, windowMode: Bool) -> CaptureClickTarget? {
         guard let window = WindowSelectionService.hit(at: quartzPoint, candidates: candidates) else {
             return windowMode ? nil : .screen
         }
-        guard let group = WindowSelectionService.fullScreenWindows(of: window, candidates: candidates, display: display),
+        guard let group = WindowSelectionService.fullScreenWindows(of: window, candidates: candidates, display: display,
+                                                                   topInset: topInset),
               let main = group.first else { return .window(window) }
         let area = main.bounds.intersection(display)
         if window.id == main.id { return .area(area) }
@@ -253,7 +254,7 @@ nonisolated enum CaptureClickTarget: Sendable {
     private func finishClick(_ point: CGPoint, screen: CaptureScreen) {
         let quartz = DisplayGeometry.quartzPoint(point, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
         switch CaptureClickTarget.resolve(at: quartz, candidates: candidates, display: screen.quartzBounds,
-                                          windowMode: isWindowMode) {
+                                          topInset: screen.topInset, windowMode: isWindowMode) {
         case let .window(candidate)?:
             let rect = DisplayGeometry.appKitRect(candidate.bounds, screenFrame: screen.frame, displayBounds: screen.quartzBounds)
             complete(.window(candidate, screen), rect: rect, screen: screen)
@@ -283,7 +284,7 @@ nonisolated enum CaptureClickTarget: Sendable {
         // Until windows are known, nothing is highlighted rather than flashing the whole screen.
         let target = candidatesReady
             ? CaptureClickTarget.resolve(at: quartz, candidates: candidates, display: screen.quartzBounds,
-                                         windowMode: isWindowMode) : nil
+                                         topInset: screen.topInset, windowMode: isWindowMode) : nil
         hovered = target?.window
         let highlight: CGRect? = switch target {
         case let .window(candidate)?:

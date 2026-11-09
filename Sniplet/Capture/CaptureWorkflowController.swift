@@ -16,8 +16,9 @@ import AppKit
 
     /// `previousRegion` needs `regionRect`, the remembered selection in global AppKit points on `displayID`.
     /// `freezeFirst` (after a countdown) snapshots before any Sniplet window appears.
+    /// `keepingOwnWindows` is for when Sniplet was frontmost: its windows are what the user sees.
     func capture(mode: CaptureMode, displayID: CGDirectDisplayID, regionRect: CGRect? = nil,
-                 freezeFirst: Bool = false,
+                 freezeFirst: Bool = false, keepingOwnWindows: Bool = false,
                  selectionAppearance: CaptureSelectionAppearance) async throws -> CaptureOutcome? {
         guard task == nil else { return nil }
         let id = UUID()
@@ -38,7 +39,7 @@ import AppKit
             if freezeFirst {
                 // Coming forward dismisses other apps' menus and popovers, so displays are
                 // captured before any Sniplet window appears; own windows are already excluded.
-                frozenWindows = try await service.prepare(requiredWindowIDs: [])
+                frozenWindows = try await service.prepare(requiredWindowIDs: [], keepingOwnWindows: keepingOwnWindows)
                 frozen = try await service.captureDisplays(selects ? screens.map(\.id) : [displayID])
                 try Task.checkCancellation()
             }
@@ -59,10 +60,12 @@ import AppKit
                 listedWindows = frozenWindows
             } else {
                 let requiredWindows = overlay.presentedWindowIDs.union(host?.panelWindowID.map { [$0] } ?? [])
-                listedWindows = try await service.prepare(requiredWindowIDs: requiredWindows)
+                listedWindows = try await service.prepare(requiredWindowIDs: requiredWindows,
+                                                          keepingOwnWindows: keepingOwnWindows)
             }
             if selects {
-                overlay.deliverCandidates(WindowSelectionService.ordinaryWindows(capturableIDs: listedWindows))
+                overlay.deliverCandidates(WindowSelectionService.ordinaryWindows(capturableIDs: listedWindows,
+                                                                                 includingOwn: keepingOwnWindows))
             }
             let capture: CapturedImage
             let footprint: CGRect
