@@ -5,13 +5,13 @@
     <link>https://sniplet.elazer.wang/appcast.xml</link>
     <language>zh-CN</language>
     <item>
-      <title>Sniplet 0.11.2</title>
-      <pubDate>Fri, 06 Nov 2026 14:58:55 GMT</pubDate>
-      <sparkle:version>20</sparkle:version>
-      <sparkle:shortVersionString>0.11.2</sparkle:shortVersionString>
+      <title>Sniplet 0.11.3</title>
+      <pubDate>Mon, 09 Nov 2026 06:59:42 GMT</pubDate>
+      <sparkle:version>21</sparkle:version>
+      <sparkle:shortVersionString>0.11.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<ul><li>菜单栏图标可以隐藏了：</li><ul><li>在设置 → 通用 → 菜单栏里关掉「在菜单栏显示图标」，或按住 ⌘ 把图标拖出菜单栏。之前图标会立刻弹回来。</li><li>隐藏后照常用快捷键截图；录屏时仍会显示计时和停止按钮。</li><li>想找回图标时，再打开一次 Sniplet（聚焦搜索或「应用程序」文件夹），图标就会回来，同时打开使用指南。</li></ul><li>延迟截图的菜单更好认了：说明只在标题里出现一次，选项只剩「3 秒」「5 秒」「10 秒」，不用再从一句话里找数字。</li><li>0.9.0 及以后的版本可以在菜单栏「检查更新…」直接更新到这一版。</li></ul>]]></description>
-      <enclosure url="https://github.com/rockythink/Sniplet/releases/download/v0.11.2/Sniplet-0.11.2-universal.zip" type="application/octet-stream" sparkle:edSignature="WHhxtqcjMgRs0xSFCLa9fJtS6o+UVVD5i0qf3D+aCcorQmVfkgU8DdRSoupJ2nqAjk1421BjsKmXqDLrFRBpCg==" length="4031141" />
+      <description><![CDATA[<ul><li>修复刘海屏 MacBook 上全屏 Chrome 截图错位：单击页面时，截出来的内容不再缩小、右边不再多出一条空白。</li><li>打开 Sniplet 的设置、使用指南或历史窗口时，截图不再受影响：</li><ul><li>这些窗口现在会跟到你正在用的桌面，在全屏 App 里打开也不会把你带去别的桌面，截图时画面也不会跳走。</li><li>Sniplet 的窗口在最前面时，可以直接截到它们，单击也能选中。</li></ul><li>0.9.0 及以后的版本可以在菜单栏「检查更新…」直接更新到这一版。</li></ul>]]></description>
+      <enclosure url="https://github.com/rockythink/Sniplet/releases/download/v0.11.3/Sniplet-0.11.3-universal.zip" type="application/octet-stream" sparkle:edSignature="geWpHTc8qb2jLS0aLFzmvvD1V2Lyb32ZRTy2Ci+Ib8LdjKpaFH7csut3qMdnG9V8y4z3TDbPAfiKdGP+wrkrDQ==" length="4037006" />
     </item>
   </channel>
 </rss>
