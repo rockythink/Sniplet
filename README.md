@@ -121,7 +121,7 @@ npm --prefix website run dev -- --host 127.0.0.1 --port 4346
 npm --prefix website run build
 ```
 
-`website/src/data/release.json` holds the displayed version and download URLs. `website/wrangler.jsonc` deploys only `website/dist` to the dedicated static Worker/domain. Deployment requires the maintainer's separately authorized Cloudflare login; account IDs in the configuration are not credentials.
+`website/src/data/release.json` holds the displayed version and download URLs. `website/wrangler.jsonc` deploys only `website/dist` to the dedicated static Worker/domain. Pushing `main` with changes under `website/**` builds and deploys automatically through GitHub Actions (`.github/workflows/deploy-website.yml`) using repository secrets; a failed build deploys nothing.
 
 The homepage's editable beautification sample is **explicitly labeled an illustration**, not a real app screenshot or a screen-reading feature. The website cannot access your screen.
 
